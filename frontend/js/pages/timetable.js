@@ -219,9 +219,19 @@ export default {
                         fd.append('subject', slot.class.subject);
                         fd.append('teacher_email', slot.class.teacher_email);
                         const res = await api.endClass(fd);
-                        alert(`Success: ${res.message}`);
+                        
+                        if (res.download_url) {
+                            const a = document.createElement('a');
+                            a.href = res.download_url;
+                            a.download = res.filename || `Attendance_${slot.class.subject}.xlsx`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        }
+
+                        showToast(res.message || `Attendance report generated!`, res.email_sent ? "success" : "info");
                     } catch (err) {
-                        alert(`Error: ${err.message}`);
+                        showToast(`Error: ${err.message}`, "error");
                     } finally {
                         endBtn.disabled = false;
                         endBtn.innerHTML = '<i class="fas fa-file-excel text-green-400"></i> End Class & Email Report';

@@ -462,9 +462,11 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         _capturedFacePhoto = photo;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error capturing photo: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error capturing photo: $e')),
+        );
+      }
     }
   }
 
@@ -711,7 +713,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 // Header Info
                 Card(
                   elevation: 0,
-                  color: const Color(0xFF0F3460).withOpacity(0.08),
+                  color: const Color(0xFF0F3460).withValues(alpha: 0.08),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: const BorderSide(color: Color(0xFF0F3460), width: 0.5),
@@ -794,9 +796,9 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F3460).withOpacity(0.08),
+                    color: const Color(0xFF0F3460).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF0F3460).withOpacity(0.2)),
+                    border: Border.all(color: const Color(0xFF0F3460).withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     children: [
@@ -871,7 +873,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(90),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.white.withValues(alpha: 0.8),
                                       width: 2.5,
                                     ),
                                   ),
@@ -1190,10 +1192,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Reset Profile / Switch User'),
               onTap: () async {
+                final nav = Navigator.of(context);
+                final rootNav = Navigator.of(ctx);
                 await AppSettings.clearProfile();
-                if (!mounted) return;
-                Navigator.of(ctx).pop();
-                Navigator.of(context).pushReplacement(
+                rootNav.pop();
+                nav.pushReplacement(
                   MaterialPageRoute(
                     builder: (context) => const StudentRegisterScreen(),
                   ),
@@ -1361,7 +1364,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.between,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
                               children: [
@@ -1454,7 +1457,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.between,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Row(
                               children: [
@@ -1473,7 +1476,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: _isBeaconDetected ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                                color: _isBeaconDetected ? Colors.green.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: _isBeaconDetected ? Colors.greenAccent : Colors.redAccent,
@@ -1786,7 +1789,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                color: const Color(0xFF0F3460).withOpacity(0.15),
+                color: const Color(0xFF0F3460).withValues(alpha: 0.15),
                 child: Text(
                   'Marking for: $_studentName (${_studentRoll.isNotEmpty ? _studentRoll : ""})',
                   textAlign: TextAlign.center,

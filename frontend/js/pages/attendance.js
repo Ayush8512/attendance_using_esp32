@@ -242,7 +242,17 @@ export default {
                     fd.append('subject', sub);
                     fd.append('teacher_email', email);
                     const res = await api.endClass(fd);
-                    showToast(res.message || `Attendance report for ${sub} sent to ${email}`, "success");
+                    
+                    if (res.download_url) {
+                        const a = document.createElement('a');
+                        a.href = res.download_url;
+                        a.download = res.filename || `Attendance_${sub}.xlsx`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+
+                    showToast(res.message || `Attendance report for ${sub} generated!`, res.email_sent ? "success" : "info");
                     closeModal();
                 } catch (err) {
                     showToast(`Failed: ${err.message}`, "error");
