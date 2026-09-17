@@ -317,6 +317,7 @@ async def init_db() -> None:
             "ALTER TABLE students ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 1",
             "ALTER TABLE students ADD COLUMN created_at TEXT",
             "ALTER TABLE students ADD COLUMN updated_at TEXT",
+            "ALTER TABLE students ADD COLUMN device_id TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(col)
@@ -476,13 +477,15 @@ async def register_student(
     roll_no: str = Form(..., description="Unique roll number of the student"),
     name: str = Form(..., description="Full name of the student"),
     photo: UploadFile = File(..., description="A clear face photo of the student"),
+    device_id: str | None = Form(None, description="Unique Device UUID for hardware binding"),
 ):
     """
     Register a new student or update existing profile if unlocked by Admin.
-    Extracts the 128-dimensional face encoding and locks the biometric profile.
+    Extracts the 128-dimensional face encoding, binds hardware device ID, and locks the biometric profile.
     """
     clean_roll = roll_no.strip().upper()
     clean_name = name.strip()
+    clean_device = device_id.strip() if device_id else ""
 
     # --- Check Admin Registration Open setting ---
     db = await get_db()
@@ -499,7 +502,7 @@ async def register_student(
 
         # Check for existing student
         cursor = await db.execute(
-            "SELECT roll_no, name, is_locked FROM students WHERE roll_no = ?", (clean_roll,)
+            "SELECT roll_no, name, is_locked, device_id FROM students WHERE roll_no = ?", (clean_roll,)
         )
         existing = await cursor.fetchone()
 
@@ -522,20 +525,20 @@ async def register_student(
         if existing:
             # Re-enroll student (previously unlocked by admin) and lock
             await db.execute(
-                "UPDATE students SET name = ?, face_encoding = ?, is_locked = 1, updated_at = ? WHERE roll_no = ?",
-                (clean_name, encoding_json, now_iso, clean_roll),
+                "UPDATE students SET name = ?, face_encoding = ?, is_locked = 1, updated_at = ?, device_id = CASE WHEN ? != '' THEN ? ELSE device_id END WHERE roll_no = ?",
+                (clean_name, encoding_json, now_iso, clean_device, clean_device, clean_roll),
             )
             await db.commit()
             return {
                 "status": "success",
                 "is_update": True,
-                "message": f"Biometric profile for '{clean_name}' (Roll No: {clean_roll}) updated and locked successfully.",
+                "message": f"Biometric profile & device binding for '{clean_name}' (Roll No: {clean_roll}) updated and locked successfully.",
             }
 
-        # New registration: Insert and lock permanently
+        # New registration: Insert, bind device, and lock permanently
         await db.execute(
-            "INSERT INTO students (roll_no, name, face_encoding, is_locked, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)",
-            (clean_roll, clean_name, encoding_json, now_iso, now_iso),
+            "INSERT INTO students (roll_no, name, face_encoding, is_locked, created_at, updated_at, device_id) VALUES (?, ?, ?, 1, ?, ?, ?)",
+            (clean_roll, clean_name, encoding_json, now_iso, now_iso, clean_device),
         )
         await db.commit()
     finally:
@@ -544,7 +547,7 @@ async def register_student(
     return {
         "status": "success",
         "is_update": False,
-        "message": f"Student '{clean_name}' (Roll No: {clean_roll}) enrolled and locked successfully.",
+        "message": f"Student '{clean_name}' (Roll No: {clean_roll}) enrolled and bound to device successfully.",
     }
 
 
@@ -552,10 +555,11 @@ async def register_student(
 async def verify_attendance(
     photo: UploadFile = File(..., description="A live photo captured from the mobile app"),
     roll_no: str | None = Form(None, description="Optional Roll Number for direct 1-to-1 biometric matching"),
+    device_id: str | None = Form(None, description="Optional Device UUID for hardware binding verification"),
 ):
     """
     Verify a student's identity and mark attendance.
-    Supports direct 1-to-1 student matching (anti-proxy) and 1-to-many fallback.
+    Supports direct 1-to-1 student matching (anti-proxy), hardware device binding verification, and 1-to-many fallback.
     """
     # ── 1. Strict Time Window Check (Server Time) ──
     now = datetime.now()
@@ -589,7 +593,7 @@ async def verify_attendance(
             # ── 1-to-1 Direct Identity Verification (Anti-Proxy Architecture) ──
             clean_roll = roll_no.strip().upper()
             cursor = await db.execute(
-                "SELECT roll_no, name, face_encoding FROM students WHERE roll_no = ?",
+                "SELECT roll_no, name, face_encoding, device_id FROM students WHERE roll_no = ?",
                 (clean_roll,),
             )
             student = await cursor.fetchone()
@@ -597,6 +601,21 @@ async def verify_attendance(
                 raise HTTPException(
                     status_code=404,
                     detail=f"Student with Roll Number '{clean_roll}' is not enrolled on this server.",
+                )
+
+            # Device Binding Security Check (1 Student = 1 Phone Lock)
+            registered_dev = (student["device_id"] or "").strip()
+            incoming_dev = (device_id or "").strip()
+            if registered_dev and incoming_dev and registered_dev != incoming_dev:
+                logger.warning(
+                    "Device Mismatch: student=%s, registered_device=%s, incoming_device=%s",
+                    clean_roll,
+                    registered_dev,
+                    incoming_dev,
+                )
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Device Security Alert! Attendance for {student['name']} ({clean_roll}) is bound to another phone. Proxy attendance from different devices is strictly blocked.",
                 )
 
             known_encoding = json.loads(student["face_encoding"])
@@ -854,6 +873,128 @@ async def delete_student(roll_no: str):
     finally:
         await db.close()
     return {"status": "success", "message": f"Student '{roll_no}' deleted successfully."}
+
+
+@app.post("/admin/students/{roll_no}/reset-device")
+async def reset_student_device(roll_no: str):
+    """Admin resets student hardware device binding so they can bind a new phone."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cur = await db.execute("UPDATE students SET device_id = '' WHERE roll_no = ?", (clean_roll,))
+        await db.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
+    finally:
+        await db.close()
+    return {"status": "success", "message": f"Device binding for student '{clean_roll}' reset. Next login will bind to their new phone."}
+
+
+@app.get("/students/{roll_no}/analytics")
+async def get_student_attendance_analytics(roll_no: str):
+    """
+    Calculate personal attendance metrics, subject-wise percentages,
+    75% shortage alerts, and chronological attendance history for a student.
+    """
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        # Check student exists
+        cursor = await db.execute("SELECT roll_no, name FROM students WHERE roll_no = ?", (clean_roll,))
+        student = await cursor.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail=f"Student with Roll Number '{clean_roll}' not found.")
+
+        # Get all attendance records for this student
+        cur_att = await db.execute(
+            """
+            SELECT date, time, subject, status
+            FROM attendance
+            WHERE roll_no = ?
+            ORDER BY date DESC, time DESC
+            """,
+            (clean_roll,),
+        )
+        records = await cur_att.fetchall()
+
+        # Get total classes held across the institution per subject
+        cur_total_classes = await db.execute(
+            """
+            SELECT subject, COUNT(DISTINCT date) as total_held
+            FROM attendance
+            WHERE subject != ''
+            GROUP BY subject
+            """
+        )
+        total_held_rows = await cur_total_classes.fetchall()
+        total_held_map = {row["subject"]: max(1, row["total_held"]) for row in total_held_rows}
+
+        # Subject-wise attendance calculation for this student
+        subject_attended: dict[str, int] = {}
+        for r in records:
+            subj = (r["subject"] or "General Class").strip()
+            subject_attended[subj] = subject_attended.get(subj, 0) + 1
+
+        # Also include subjects from timetable if not yet held
+        cur_tt = await db.execute("SELECT DISTINCT subject FROM timetable WHERE subject != ''")
+        tt_subjects = [row["subject"] for row in await cur_tt.fetchall()]
+        for subj in tt_subjects:
+            clean_subj = subj.strip()
+            if clean_subj not in total_held_map:
+                total_held_map[clean_subj] = 0
+
+        subjects_summary = []
+        shortage_subjects = []
+        total_attended_all = len(records)
+        total_held_all = sum(total_held_map.values()) if total_held_map else max(1, total_attended_all)
+        if total_held_all == 0:
+            total_held_all = max(1, total_attended_all)
+
+        for subj, held in total_held_map.items():
+            attended = subject_attended.get(subj, 0)
+            effective_held = held if held > 0 else (attended if attended > 0 else 1)
+            percentage = round((attended / effective_held) * 100, 1) if effective_held > 0 else 100.0
+            percentage = min(100.0, percentage)
+            is_shortage = percentage < 75.0 and effective_held >= 3
+
+            subj_data = {
+                "subject": subj,
+                "attended": attended,
+                "total_held": effective_held,
+                "percentage": percentage,
+                "shortage": is_shortage,
+            }
+            subjects_summary.append(subj_data)
+            if is_shortage:
+                shortage_subjects.append(subj)
+
+        overall_pct = round((total_attended_all / total_held_all) * 100, 1) if total_held_all > 0 else 100.0
+        overall_pct = min(100.0, overall_pct)
+
+        return {
+            "status": "success",
+            "student": {
+                "roll_no": student["roll_no"],
+                "name": student["name"],
+            },
+            "overall_percentage": overall_pct,
+            "total_attended": total_attended_all,
+            "total_held": total_held_all,
+            "is_shortage": overall_pct < 75.0,
+            "shortage_subjects": shortage_subjects,
+            "subjects": sorted(subjects_summary, key=lambda x: x["subject"]),
+            "records": [
+                {
+                    "date": r["date"],
+                    "time": r["time"],
+                    "subject": r["subject"] or "General Class",
+                    "status": r["status"],
+                }
+                for r in records
+            ],
+        }
+    finally:
+        await db.close()
 
 
 

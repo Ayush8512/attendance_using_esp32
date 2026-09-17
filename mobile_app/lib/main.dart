@@ -96,6 +96,18 @@ class AppSettings {
     await prefs.setString(keyServerUrl, serverUrl);
   }
 
+  static const String keyDeviceId = 'device_hardware_uuid';
+
+  static Future<String> getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? devId = prefs.getString(keyDeviceId);
+    if (devId == null || devId.isEmpty) {
+      devId = 'dev_${DateTime.now().millisecondsSinceEpoch}_${(1000 + (DateTime.now().microsecond % 9000))}';
+      await prefs.setString(keyDeviceId, devId);
+    }
+    return devId;
+  }
+
   static Future<void> clearProfile() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(keyIsRegistered);
@@ -490,10 +502,12 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     final serverUrl = _serverController.text.trim();
 
     try {
+      final deviceId = await AppSettings.getDeviceId();
       final uri = Uri.parse('$serverUrl/register');
       final request = http.MultipartRequest('POST', uri)
         ..fields['name'] = name
         ..fields['roll_no'] = rollNo
+        ..fields['device_id'] = deviceId
         ..files.add(
           await http.MultipartFile.fromPath(
             'photo',
@@ -1567,6 +1581,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                   ),
                 ),
+                // 5. Analytics & 75% Tracker Button
+                SizedBox(
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => StudentAnalyticsScreen(
+                            serverUrl: _serverUrl,
+                            rollNo: _studentRoll,
+                            studentName: _studentName,
+                          ),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F3460),
+                      side: const BorderSide(color: Color(0xFF0F3460), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.analytics_outlined, size: 22),
+                    label: const Text(
+                      'My Attendance & 75% Shortage Tracker',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
 
                 // Simulation helper button
@@ -1703,12 +1747,14 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
 
       _setStatus('Checking time window & verifying face…', Colors.indigo);
 
+      final deviceId = await AppSettings.getDeviceId();
       final uri = Uri.parse('$_serverUrl/verify');
       final request = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('photo', path));
       if (_studentRoll.isNotEmpty) {
         request.fields['roll_no'] = _studentRoll;
       }
+      request.fields['device_id'] = deviceId;
 
       final streamed = await request.send().timeout(
             const Duration(seconds: 15),
@@ -1890,6 +1936,406 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Student Attendance Analytics & 75% Tracker Screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+class StudentAnalyticsScreen extends StatefulWidget {
+  final String serverUrl;
+  final String rollNo;
+  final String studentName;
+
+  const StudentAnalyticsScreen({
+    super.key,
+    required this.serverUrl,
+    required this.rollNo,
+    required this.studentName,
+  });
+
+  @override
+  State<StudentAnalyticsScreen> createState() => _StudentAnalyticsScreenState();
+}
+
+class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, dynamic>? _analyticsData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnalytics();
+  }
+
+  Future<void> _loadAnalytics() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final uri = Uri.parse('${widget.serverUrl}/students/${widget.rollNo}/analytics');
+      final res = await http.get(uri).timeout(const Duration(seconds: 12));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _analyticsData = data;
+            _isLoading = false;
+          });
+        }
+      } else {
+        final err = jsonDecode(res.body)['detail'] ?? 'Failed to load analytics (${res.statusCode})';
+        if (mounted) {
+          setState(() {
+            _errorMessage = err.toString();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Connection error: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final overallPct = (_analyticsData?['overall_percentage'] as num?)?.toDouble() ?? 0.0;
+    final isShortage = _analyticsData?['is_shortage'] ?? false;
+    final totalAttended = _analyticsData?['total_attended'] ?? 0;
+    final totalHeld = _analyticsData?['total_held'] ?? 0;
+    final subjects = (_analyticsData?['subjects'] as List<dynamic>?) ?? [];
+    final records = (_analyticsData?['records'] as List<dynamic>?) ?? [];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Attendance Analytics'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _loadAnalytics,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.tonal(
+                          onPressed: _loadAnalytics,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadAnalytics,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Header Profile info
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: const Color(0xFF0F3460),
+                            child: Text(
+                              widget.studentName.isNotEmpty ? widget.studentName[0].toUpperCase() : 'S',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.studentName,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'Roll No: ${widget.rollNo}',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 1. Overall Percentage Gauge Card
+                      Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: isShortage ? Colors.red.shade300 : Colors.green.shade300,
+                            width: 1.5,
+                          ),
+                        ),
+                        color: isShortage ? Colors.red.shade50 : Colors.green.shade50,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Overall Attendance',
+                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$overallPct%',
+                                        style: TextStyle(
+                                          fontSize: 36,
+                                          fontWeight: FontWeight.bold,
+                                          color: isShortage ? Colors.red.shade800 : Colors.green.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isShortage ? Colors.red : Colors.green,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      isShortage ? 'SHORTAGE ALERT' : 'ELIGIBLE (>=75%)',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  value: (overallPct / 100).clamp(0.0, 1.0),
+                                  minHeight: 10,
+                                  backgroundColor: Colors.white,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isShortage ? Colors.red : Colors.green,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Classes Attended: $totalAttended / $totalHeld',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'Target: >= 75%',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 2. Subject Breakdown Section
+                      Text(
+                        'Subject-Wise Performance',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+
+                      if (subjects.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text('No subject attendance data available yet.'),
+                          ),
+                        )
+                      else
+                        ...subjects.map((subj) {
+                          final sName = subj['subject'] ?? 'Unknown';
+                          final sAtt = subj['attended'] ?? 0;
+                          final sHeld = subj['total_held'] ?? 1;
+                          final sPct = (subj['percentage'] as num?)?.toDouble() ?? 0.0;
+                          final sShortage = subj['shortage'] ?? false;
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: sShortage ? Colors.red.shade200 : Colors.grey.shade300),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          sName,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: sShortage ? Colors.red.shade100 : Colors.green.shade100,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '$sPct%',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: sShortage ? Colors.red.shade800 : Colors.green.shade800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: (sPct / 100).clamp(0.0, 1.0),
+                                      minHeight: 6,
+                                      backgroundColor: Colors.grey.shade200,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        sShortage ? Colors.red : Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Attended: $sAtt / $sHeld classes',
+                                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      ),
+                                      if (sShortage)
+                                        const Text(
+                                          '⚠️ Below 75%',
+                                          style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      const SizedBox(height: 20),
+
+                      // 3. Attendance History Logs
+                      Text(
+                        'Recent Attendance Log',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+
+                      if (records.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text('No attendance marked yet.'),
+                          ),
+                        )
+                      else
+                        ...records.take(15).map((r) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                    const SizedBox(width: 10),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          r['subject'] ?? 'Class',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        Text(
+                                          '${r['date']} • ${r['time']}',
+                                          style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.green.shade200),
+                                  ),
+                                  child: const Text(
+                                    'Present',
+                                    style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
     );
   }
 }
