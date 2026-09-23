@@ -53,6 +53,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="true" />
     </application>
 
     <!-- Declare BLE hardware feature (optional = true so it installs on all devices) -->

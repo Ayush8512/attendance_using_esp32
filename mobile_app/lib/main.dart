@@ -28,7 +28,7 @@ const int kMinRssi = -75;
 const Duration kScanTimeout = Duration(seconds: 8);
 
 /// Default Backend URL (fallback when not configured by user)
-const String kDefaultApiBaseUrl = 'http://10.127.162.188:8000';
+const String kDefaultApiBaseUrl = 'https://ayush-smart-backend.loca.lt';
 
 /// Local Push Notification Channel IDs
 const String kNotificationChannelId = 'classroom_ble_channel';
@@ -36,9 +36,31 @@ const String kNotificationChannelName = 'Classroom Beacon Alerts';
 const int kClassroomNotificationId = 888;
 const int kForegroundServiceNotificationId = 889;
 
+/// College Branches & Sections Mapping
+const Map<String, String> kBranches = {
+  'A': 'Computer Science & Engineering',
+  'B': 'Electronics Engineering',
+  'C': 'Industrial & Production Engineering',
+  'D': 'Mechanical Engineering',
+  'E': 'Instrumentation & Control Engineering',
+  'F': 'Electrical Engineering',
+  'G': 'Civil Engineering',
+};
+
+const Map<String, String> kBranchShortNames = {
+  'A': 'CSE',
+  'B': 'ECE',
+  'C': 'IPE',
+  'D': 'ME',
+  'E': 'ICE',
+  'F': 'EE',
+  'G': 'CE',
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Global State & Navigation
 // ─────────────────────────────────────────────────────────────────────────────
+
 
 late List<CameraDescription> _cameras;
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -58,6 +80,21 @@ class AppSettings {
   static const String keyStudentName = 'student_name';
   static const String keyStudentRoll = 'student_roll';
   static const String keyServerUrl = 'server_url';
+  static const String keyStudentBranch = 'student_branch';
+  static const String keyStudentSection = 'student_section';
+  static const String keyStudentClassRoll = 'student_class_roll';
+  static const String keyStudentYear = 'student_year';
+
+  static String getYearLabel(dynamic yearOrSection) {
+    if (yearOrSection == null) return '1st Year';
+    final str = yearOrSection.toString().trim().toUpperCase();
+    if (str.isEmpty) return '1st Year';
+    if (str == '1' || str.endsWith('1')) return '1st Year';
+    if (str == '2' || str.endsWith('2')) return '2nd Year';
+    if (str == '3' || str.endsWith('3')) return '3rd Year';
+    if (str == '4' || str.endsWith('4')) return '4th Year';
+    return '$str Year';
+  }
 
   static Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
@@ -74,6 +111,32 @@ class AppSettings {
     return prefs.getString(keyStudentRoll) ?? '';
   }
 
+  static Future<String> getStudentBranch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(keyStudentBranch) ?? '';
+  }
+
+  static Future<String> getStudentSection() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(keyStudentSection) ?? '';
+  }
+
+  static Future<String> getStudentClassRoll() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(keyStudentClassRoll) ?? '';
+  }
+
+  static Future<String> getStudentYear() async {
+    final prefs = await SharedPreferences.getInstance();
+    final yr = prefs.getString(keyStudentYear) ?? '';
+    if (yr.isNotEmpty) return yr;
+    final sec = prefs.getString(keyStudentSection) ?? '';
+    if (sec.length >= 2 && RegExp(r'^[1-4]$').hasMatch(sec.substring(1))) {
+      return sec.substring(1);
+    }
+    return '';
+  }
+
   static Future<String> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(keyServerUrl) ?? kDefaultApiBaseUrl;
@@ -83,12 +146,25 @@ class AppSettings {
     required String name,
     required String rollNo,
     required String serverUrl,
+    String branch = '',
+    String section = '',
+    String classRoll = '',
+    String year = '',
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(keyIsRegistered, true);
     await prefs.setString(keyStudentName, name);
     await prefs.setString(keyStudentRoll, rollNo);
     await prefs.setString(keyServerUrl, serverUrl);
+    await prefs.setString(keyStudentBranch, branch);
+    await prefs.setString(keyStudentSection, section);
+    await prefs.setString(keyStudentClassRoll, classRoll);
+
+    String finalYear = year;
+    if (finalYear.isEmpty && section.length >= 2 && RegExp(r'^[1-4]$').hasMatch(section.substring(1))) {
+      finalYear = section.substring(1);
+    }
+    await prefs.setString(keyStudentYear, finalYear);
   }
 
   static Future<void> updateServerUrl(String serverUrl) async {
@@ -113,6 +189,10 @@ class AppSettings {
     await prefs.remove(keyIsRegistered);
     await prefs.remove(keyStudentName);
     await prefs.remove(keyStudentRoll);
+    await prefs.remove(keyStudentBranch);
+    await prefs.remove(keyStudentSection);
+    await prefs.remove(keyStudentClassRoll);
+    await prefs.remove(keyStudentYear);
   }
 }
 
@@ -215,15 +295,15 @@ Future<void> initializeBackgroundService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onBackgroundServiceStart,
-      autoStart: true,
-      isForegroundMode: true,
+      autoStart: false,
+      isForegroundMode: false,
       notificationChannelId: kNotificationChannelId,
       initialNotificationTitle: 'Smart Attendance Service',
       initialNotificationContent: 'Monitoring classroom beacons in background...',
       foregroundServiceNotificationId: kForegroundServiceNotificationId,
     ),
     iosConfiguration: IosConfiguration(
-      autoStart: true,
+      autoStart: false,
       onForeground: onBackgroundServiceStart,
       onBackground: onIosBackground,
     ),
@@ -342,6 +422,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+
   try {
     _cameras = await availableCameras();
   } catch (e) {
@@ -349,8 +430,18 @@ Future<void> main() async {
     debugPrint('[CAMERA] Initialization error: $e');
   }
 
-  await initLocalNotifications();
-  await initializeBackgroundService();
+  try {
+    await initLocalNotifications();
+    await initializeBackgroundService();
+    
+    // Explicitly kill the background service if it was running from a previous installation
+    final service = FlutterBackgroundService();
+    if (await service.isRunning()) {
+      service.invoke("stopService");
+    }
+  } catch (e) {
+    debugPrint('[BACKGROUND SERVICE] Initialization error: $e');
+  }
 
   final bool alreadyRegistered = await AppSettings.isRegistered();
 
@@ -397,14 +488,22 @@ class StudentRegisterScreen extends StatefulWidget {
 }
 
 class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
+  CameraController? _cameraController;
+  bool _isCameraReady = false;
+  XFile? _capturedFacePhoto;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _rollController = TextEditingController();
   final _serverController = TextEditingController(text: kDefaultApiBaseUrl);
 
-  CameraController? _cameraController;
-  bool _isCameraReady = false;
-  XFile? _capturedFacePhoto;
+  String? _selectedBranchCode;
+  String? _selectedSection;
+  String _classRollNo = '';
+  bool _isSearchingRoster = false;
+  Map<String, dynamic>? _matchedRosterStudent;
+  Timer? _debounceTimer;
+
+
   bool _isRegistering = false;
   bool _isRestoring = false;
 
@@ -418,6 +517,18 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   Future<void> _loadExistingProfile() async {
     final server = await AppSettings.getServerUrl();
     _serverController.text = server;
+
+    final branch = await AppSettings.getStudentBranch();
+    final section = await AppSettings.getStudentSection();
+    final classRoll = await AppSettings.getStudentClassRoll();
+
+    if (mounted) {
+      setState(() {
+        if (branch.isNotEmpty) _selectedBranchCode = branch;
+        if (section.isNotEmpty) _selectedSection = section;
+        _classRollNo = classRoll;
+      });
+    }
 
     if (widget.isEditMode) {
       _nameController.text = await AppSettings.getStudentName();
@@ -474,12 +585,112 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         _capturedFacePhoto = photo;
       });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error capturing photo: $e')),
-        );
-      }
+      debugPrint('[Camera] Capture error: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _nameController.dispose();
+    _rollController.dispose();
+    _serverController.dispose();
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+
+  void _onRollChanged(String value) {
+    _debounceTimer?.cancel();
+    final query = value.trim();
+    if (query.length < 3) {
+      setState(() => _matchedRosterStudent = null);
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 600), () {
+      _lookupRosterStudent(query);
+    });
+  }
+
+  Future<void> _lookupRosterStudent(String query) async {
+    final serverUrl = _serverController.text.trim();
+    if (serverUrl.isEmpty || query.trim().isEmpty) return;
+
+    setState(() => _isSearchingRoster = true);
+    try {
+      final uri = Uri.parse('$serverUrl/roster/lookup/${Uri.encodeComponent(query.trim())}');
+      final res = await http.get(uri).timeout(const Duration(seconds: 6));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        if (data['found'] == true && data['student'] != null) {
+          final s = data['student'] as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _matchedRosterStudent = s;
+              _nameController.text = s['name'] ?? _nameController.text;
+              _selectedBranchCode = s['branch_code'] ?? _selectedBranchCode;
+              _selectedSection = s['section'] ?? _selectedSection;
+              _classRollNo = (s['class_roll_no'] ?? '').toString();
+              if (s['aktu_roll_no'] != null && s['aktu_roll_no'].toString().isNotEmpty) {
+                _rollController.text = s['aktu_roll_no'].toString();
+              }
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Verified Roster: ${s['name']} (${s['branch_name']} - ${s['section']})'),
+                backgroundColor: Colors.green.shade700,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          if (mounted) setState(() => _matchedRosterStudent = null);
+        }
+      }
+    } catch (e) {
+      debugPrint('[RosterLookup] Error: $e');
+    } finally {
+      if (mounted) setState(() => _isSearchingRoster = false);
+    }
+  }
+
+  void _openBrowseRosterModal() {
+    final serverUrl = _serverController.text.trim();
+    if (serverUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter Server Base URL first.')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return _BrowseRosterSheet(
+          serverUrl: serverUrl,
+          initialBranch: _selectedBranchCode ?? 'A',
+          initialSection: _selectedSection ?? 'A1',
+          onSelectStudent: (s) {
+            setState(() {
+              _matchedRosterStudent = s;
+              _nameController.text = s['name'] ?? '';
+              _rollController.text = s['aktu_roll_no']?.toString().isNotEmpty == true
+                  ? s['aktu_roll_no'].toString()
+                  : (s['roll_no'] ?? '');
+              _selectedBranchCode = s['branch_code'] ?? _selectedBranchCode;
+              _selectedSection = s['section'] ?? _selectedSection;
+              _classRollNo = (s['class_roll_no'] ?? '').toString();
+            });
+            Navigator.pop(ctx);
+          },
+        );
+      },
+    );
   }
 
   Future<void> _submitRegistration() async {
@@ -500,6 +711,9 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     final name = _nameController.text.trim();
     final rollNo = _rollController.text.trim().toUpperCase();
     final serverUrl = _serverController.text.trim();
+    final branchCode = _selectedBranchCode ?? '';
+    final branchName = kBranches[branchCode] ?? '';
+    final section = _selectedSection ?? '';
 
     try {
       final deviceId = await AppSettings.getDeviceId();
@@ -507,26 +721,42 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       final request = http.MultipartRequest('POST', uri)
         ..fields['name'] = name
         ..fields['roll_no'] = rollNo
-        ..fields['device_id'] = deviceId
-        ..files.add(
-          await http.MultipartFile.fromPath(
-            'photo',
-            _capturedFacePhoto!.path,
-          ),
-        );
+        ..fields['device_id'] = deviceId;
 
-      final streamed = await request.send().timeout(const Duration(seconds: 15));
+      if (branchCode.isNotEmpty) {
+        request.fields['branch_code'] = branchCode;
+        request.fields['branch_name'] = branchName;
+      }
+      if (section.isNotEmpty) {
+        request.fields['section'] = section;
+      }
+      if (_classRollNo.isNotEmpty) {
+        request.fields['class_roll_no'] = _classRollNo;
+      }
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'photo',
+          _capturedFacePhoto!.path,
+        ),
+      );
+
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamed);
 
       final Map<String, dynamic> data =
           jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final yrLabel = AppSettings.getYearLabel(section);
         // Save locally in SharedPreferences
         await AppSettings.saveProfile(
           name: name,
           rollNo: rollNo,
           serverUrl: serverUrl,
+          branch: branchCode,
+          section: section,
+          classRoll: _classRollNo,
         );
 
         if (!mounted) return;
@@ -538,7 +768,12 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
             icon: const Icon(Icons.check_circle, color: Colors.green, size: 50),
             title: const Text('Registration Successful!'),
             content: Text(
-              'Welcome $name!\n\nYour profile (Roll: $rollNo) and face encoding have been saved on the server.\n\nYou can now mark attendance anytime you are in class.',
+              'Welcome $name!\n\n'
+              '• Academic Year: $yrLabel\n'
+              '• Branch: ${branchName.isNotEmpty ? branchName : "General"}\n'
+              '• Section: ${section.isNotEmpty ? section : "N/A"}\n'
+              '• Roll No: $rollNo\n\n'
+              'Your profile and face biometrics are verified and saved.',
             ),
             actions: [
               FilledButton(
@@ -578,7 +813,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Connection timed out to $serverUrl.\nCheck if Laptop IP is correct (e.g. http://10.127.162.188:8000) and backend server is running.'),
+          content: Text('Connection timed out to $serverUrl.\nCheck if Laptop IP is correct and backend server is running.'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 6),
         ),
@@ -621,18 +856,35 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
     setState(() => _isRestoring = true);
     try {
-      final uri = Uri.parse('$serverUrl/students/$rollNo');
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      final deviceId = await AppSettings.getDeviceId();
+      final uri = Uri.parse('$serverUrl/students/login');
+      final response = await http.post(
+        uri,
+        body: {
+          'roll_no': rollNo,
+          'device_id': deviceId,
+        },
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final studentName = data['name'] ?? 'Student';
-        final studentRoll = data['roll_no'] ?? rollNo;
+        final studentData = data['student'] as Map<String, dynamic>? ?? {};
+        final studentName = studentData['name'] ?? 'Student';
+        final studentRoll = studentData['roll_no'] ?? rollNo;
+        final studentBranch = studentData['branch_code'] ?? '';
+        final studentSection = studentData['section'] ?? '';
+        final studentClassRoll = (studentData['class_roll_no'] ?? '').toString();
+        final studentYear = (studentData['year'] ?? '').toString();
+        final yrLabel = AppSettings.getYearLabel(studentYear.isNotEmpty ? studentYear : studentSection);
 
         await AppSettings.saveProfile(
           name: studentName,
           rollNo: studentRoll,
           serverUrl: serverUrl,
+          branch: studentBranch,
+          section: studentSection,
+          classRoll: studentClassRoll,
+          year: studentYear,
         );
 
         if (!mounted) return;
@@ -643,7 +895,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
             icon: const Icon(Icons.verified_user, color: Colors.green, size: 50),
             title: const Text('Profile Restored!'),
             content: Text(
-              'Welcome back, $studentName!\n\nYour profile (Roll: $studentRoll) is active on the server. You can now mark attendance.',
+              'Welcome back, $studentName!\n\nYour profile ($yrLabel • Section: $studentSection • Roll: $studentRoll) is active on the server.',
             ),
             actions: [
               FilledButton(
@@ -662,9 +914,11 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         );
       } else {
         if (!mounted) return;
+        final err = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+        final errMsg = err['detail'] ?? 'Roll No "$rollNo" is not registered or device mismatch.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Roll No "$rollNo" is not registered yet. Please enter your name, take a selfie, and tap "Register Student" below.'),
+            content: Text(errMsg),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -696,18 +950,22 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    _nameController.dispose();
-    _rollController.dispose();
-    _serverController.dispose();
-    super.dispose();
+  List<String> _getAvailableSections() {
+    if (_selectedBranchCode == null || _selectedBranchCode!.isEmpty) {
+      return ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'D4', 'E1', 'E2', 'E3', 'E4', 'F1', 'F2', 'F3', 'F4', 'G1', 'G2', 'G3', 'G4'];
+    }
+    final code = _selectedBranchCode!;
+    return ['$code 1', '$code 2', '$code 3', '$code 4']
+        .map((s) => s.replaceAll(' ', ''))
+        .toList();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final availableSections = _getAvailableSections();
 
     return Scaffold(
       appBar: AppBar(
@@ -732,49 +990,138 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                     side: const BorderSide(color: Color(0xFF0F3460), width: 0.5),
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Color(0xFF0F3460)),
-                        SizedBox(width: 12),
+                        const Icon(Icons.school_outlined, color: Color(0xFF0F3460), size: 28),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            'Register your name, roll number, and face profile once. The app will save your details for attendance.',
-                            style: TextStyle(fontSize: 13, height: 1.3),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'IERT Prayagraj Student Onboarding',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F3460)),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Select your Branch & Section or type your Roll No to auto-fill official details from the master college roster (1,706 students).',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.3),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
-                // Name input
-                TextFormField(
-                  controller: _nameController,
+                // Quick Browse Roster Button
+                OutlinedButton.icon(
+                  onPressed: _openBrowseRosterModal,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F3460),
+                    side: const BorderSide(color: Color(0xFF0F3460), width: 1.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.list_alt, size: 20),
+                  label: const Text(
+                    '📋 Browse Section Roster (One-Tap Select)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Branch Dropdown
+                DropdownButtonFormField<String>(
+                  key: ValueKey('branch_$_selectedBranchCode'),
+                  initialValue: _selectedBranchCode,
+                  isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    hintText: 'e.g. Ayush Pandey',
-                    prefixIcon: const Icon(Icons.person),
+                    labelText: 'Branch (A to G)',
+                    prefixIcon: const Icon(Icons.apartment),
                     filled: true,
                     fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Please enter your name' : null,
+                  hint: const Text('Select Branch'),
+                  items: kBranches.entries.map((e) {
+                    return DropdownMenuItem<String>(
+                      value: e.key,
+                      child: Text(
+                        'Branch ${e.key} - ${e.value}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedBranchCode = val;
+                      final secList = _getAvailableSections();
+                      if (_selectedSection == null || !secList.contains(_selectedSection)) {
+                        _selectedSection = secList.first;
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(height: 14),
 
-                // Roll Number input
+                // Section Dropdown
+                DropdownButtonFormField<String>(
+                  key: ValueKey('sec_${_selectedBranchCode}_$_selectedSection'),
+                  initialValue: availableSections.contains(_selectedSection) ? _selectedSection : null,
+                  decoration: InputDecoration(
+                    labelText: 'Section (e.g. A1, A2, A3, A4)',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  hint: const Text('Select Section'),
+                  items: availableSections.map((sec) {
+                    final yrNum = sec.length >= 2 ? sec.substring(1) : '';
+                    final yrLabel = yrNum == '1'
+                        ? '1st Year'
+                        : yrNum == '2'
+                            ? '2nd Year'
+                            : yrNum == '3'
+                                ? '3rd Year'
+                                : yrNum == '4'
+                                    ? '4th Year'
+                                    : 'Section';
+                    return DropdownMenuItem<String>(
+                      value: sec,
+                      child: Text('Section $sec ($yrLabel)'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => _selectedSection = val);
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Roll Number input with instant lookup
                 TextFormField(
                   controller: _rollController,
+                  onChanged: _onRollChanged,
                   decoration: InputDecoration(
-                    labelText: 'Roll Number / Student ID',
-                    hintText: 'e.g. CS-2024-001',
+                    labelText: 'Roll Number (AKTU Roll / Section Roll)',
+                    hintText: 'e.g. 2401100100001 or A1-01',
                     prefixIcon: const Icon(Icons.badge),
+                    suffixIcon: _isSearchingRoster
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.search),
+                            tooltip: 'Lookup in Master Roster',
+                            onPressed: () => _lookupRosterStudent(_rollController.text),
+                          ),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -784,6 +1131,58 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'Please enter roll number' : null,
                 ),
+
+                // Matched Student Banner
+                if (_matchedRosterStudent != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified, color: Colors.green, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Verified Roster Record: ${_matchedRosterStudent!['name']}',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green.shade900),
+                              ),
+                              Text(
+                                'Branch ${_matchedRosterStudent!['branch_code']} (${_matchedRosterStudent!['branch_name']}) • Section ${_matchedRosterStudent!['section']} • Class Roll #${_matchedRosterStudent!['class_roll_no'] ?? "-"}',
+                                style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+
+                // Name input
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Full Student Name',
+                    hintText: 'e.g. Ayush Pandey',
+                    prefixIcon: const Icon(Icons.person),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Please enter student name' : null,
+                ),
                 const SizedBox(height: 14),
 
                 // Server URL input
@@ -791,9 +1190,9 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                   controller: _serverController,
                   decoration: InputDecoration(
                     labelText: 'Server Base URL',
-                    hintText: 'http://<LAPTOP_IP>:8000',
+                    hintText: 'https://ayush-smart-backend.loca.lt',
                     prefixIcon: const Icon(Icons.dns),
-                    helperText: 'Laptop & Phone same Wi-Fi pe honi chahiye (e.g. http://10.127.162.188:8000)',
+                    helperText: 'Cloud Testing Link. Works on 4G Mobile Data.',
                     helperMaxLines: 2,
                     filled: true,
                     fillColor: Colors.white,
@@ -820,7 +1219,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'App reinstalled? Restore with Roll No:',
+                          'App reinstalled? Restore profile:',
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -832,7 +1231,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                                 height: 14,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('Restore Profile', style: TextStyle(fontSize: 12)),
+                            : const Text('Restore', style: TextStyle(fontSize: 12)),
                       ),
                     ],
                   ),
@@ -946,6 +1345,275 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Browse Master College Roster Bottom Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BrowseRosterSheet extends StatefulWidget {
+  final String serverUrl;
+  final String initialBranch;
+  final String initialSection;
+  final Function(Map<String, dynamic> student) onSelectStudent;
+
+  const _BrowseRosterSheet({
+    required this.serverUrl,
+    required this.initialBranch,
+    required this.initialSection,
+    required this.onSelectStudent,
+  });
+
+  @override
+  State<_BrowseRosterSheet> createState() => _BrowseRosterSheetState();
+}
+
+class _BrowseRosterSheetState extends State<_BrowseRosterSheet> {
+  late String _branch;
+  late String _section;
+  final _searchController = TextEditingController();
+  List<dynamic> _students = [];
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _branch = widget.initialBranch;
+    _section = widget.initialSection;
+    _fetchStudents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchStudents() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final query = _searchController.text.trim();
+      final uri = Uri.parse('${widget.serverUrl}/roster/students?section=$_section&search=${Uri.encodeComponent(query)}&limit=100');
+      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _students = data['students'] as List<dynamic>? ?? [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = 'Failed to load roster (${res.statusCode})';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Connection error: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = ['$_branch 1', '$_branch 2', '$_branch 3', '$_branch 4']
+        .map((s) => s.replaceAll(' ', ''))
+        .toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (ctx, scrollController) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select Student from Master Roster',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Branch Selector Row
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: kBranches.entries.map((e) {
+                    final isSel = e.key == _branch;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text('${e.key} (${kBranchShortNames[e.key] ?? ""})'),
+                        selected: isSel,
+                        onSelected: (val) {
+                          if (val) {
+                            setState(() {
+                              _branch = e.key;
+                              _section = '${e.key}1';
+                            });
+                            _fetchStudents();
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Section Selector Row
+              Row(
+                children: sections.map((sec) {
+                  final isSel = sec == _section;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(sec),
+                      selected: isSel,
+                      onSelected: (val) {
+                        setState(() => _section = sec);
+                        _fetchStudents();
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+
+              // Search box
+              TextField(
+                controller: _searchController,
+                onChanged: (_) => _fetchStudents(),
+                decoration: InputDecoration(
+                  hintText: 'Search by name or roll number...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            _fetchStudents();
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // List of students
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(_error!, style: const TextStyle(color: Colors.red)),
+                                const SizedBox(height: 8),
+                                FilledButton.tonal(
+                                  onPressed: _fetchStudents,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _students.isEmpty
+                            ? const Center(child: Text('No students found in this section.'))
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: _students.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1),
+                                itemBuilder: (ctx, i) {
+                                  final s = _students[i] as Map<String, dynamic>;
+                                  final isReg = s['is_registered'] == true;
+                                  final classRoll = s['class_roll_no']?.toString() ?? '-';
+                                  final aktuRoll = s['aktu_roll_no']?.toString() ?? '';
+                                  final name = s['name'] ?? '';
+
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: isReg ? Colors.green.shade100 : const Color(0xFF0F3460).withValues(alpha: 0.1),
+                                      child: Text(
+                                        classRoll,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: isReg ? Colors.green.shade900 : const Color(0xFF0F3460),
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      name,
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                    ),
+                                    subtitle: Text(
+                                      'Roll: ${aktuRoll.isNotEmpty ? aktuRoll : s['roll_no'] ?? "-"} • Section $_section',
+                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                    ),
+                                    trailing: isReg
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: Colors.green.shade300),
+                                            ),
+                                            child: const Text(
+                                              'Registered',
+                                              style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                                            ),
+                                          )
+                                        : const Icon(Icons.chevron_right, color: Colors.grey),
+                                    onTap: () => widget.onSelectStudent(s),
+                                  );
+                                },
+                              ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Main Attendance Dashboard (For Registered Students)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -963,6 +1631,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _studentName = '';
   String _studentRoll = '';
   String _serverUrl = '';
+  String _studentBranch = '';
+  String _studentSection = '';
+  String _studentClassRoll = '';
+  String _studentYear = '';
 
   // Timetable State
   bool _isLoadingTimetable = false;
@@ -1002,11 +1674,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final name = await AppSettings.getStudentName();
     final roll = await AppSettings.getStudentRoll();
     final server = await AppSettings.getServerUrl();
+    final branch = await AppSettings.getStudentBranch();
+    final section = await AppSettings.getStudentSection();
+    final classRoll = await AppSettings.getStudentClassRoll();
+    final year = await AppSettings.getStudentYear();
     if (mounted) {
       setState(() {
         _studentName = name;
         _studentRoll = roll;
         _serverUrl = server;
+        _studentBranch = branch;
+        _studentSection = section;
+        _studentClassRoll = classRoll;
+        _studentYear = year;
       });
       _fetchLiveTimetable();
       _startManualBeaconScan();
@@ -1179,7 +1859,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'http://10.127.162.188:8000',
+                hintText: 'https://ayush-smart-backend.loca.lt',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -1321,13 +2001,66 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Roll No: ${_studentRoll.isNotEmpty ? _studentRoll : "Not Registered"}',
+                                'Roll No: ${_studentRoll.isNotEmpty ? _studentRoll : "Not Registered"}${_studentClassRoll.isNotEmpty ? " • Class #$_studentClassRoll" : ""}',
                                 style: TextStyle(
                                   color: Colors.grey.shade700,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
                               ),
+                              if (_studentBranch.isNotEmpty || _studentSection.isNotEmpty || _studentYear.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE94560).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFFE94560).withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        AppSettings.getYearLabel(_studentYear.isNotEmpty ? _studentYear : _studentSection),
+                                        style: const TextStyle(
+                                          color: Color(0xFFE94560),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_studentSection.isNotEmpty) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0F3460).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: const Color(0xFF0F3460).withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(
+                                          'Section $_studentSection',
+                                          style: const TextStyle(
+                                            color: Color(0xFF0F3460),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (_studentBranch.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${kBranches[_studentBranch] ?? _studentBranch} (${kBranchShortNames[_studentBranch] ?? _studentBranch})',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade800,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11.5,
+                                    ),
+                                  ),
+                                ],
+                              ],
                               const SizedBox(height: 4),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1593,6 +2326,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             serverUrl: _serverUrl,
                             rollNo: _studentRoll,
                             studentName: _studentName,
+                            branch: _studentBranch,
+                            section: _studentSection,
+                            year: _studentYear.isNotEmpty ? _studentYear : _studentSection,
                           ),
                         ),
                       );
@@ -1658,25 +2394,15 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   String _serverUrl = kDefaultApiBaseUrl;
   String _studentName = '';
   String _studentRoll = '';
+  String _studentBranch = '';
+  String _studentSection = '';
+  String _studentYear = '';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _initializeCamera();
-  }
-
-  Future<void> _loadSettings() async {
-    final server = await AppSettings.getServerUrl();
-    final name = await AppSettings.getStudentName();
-    final roll = await AppSettings.getStudentRoll();
-    if (mounted) {
-      setState(() {
-        _serverUrl = server;
-        _studentName = name;
-        _studentRoll = roll;
-      });
-    }
   }
 
   Future<void> _initializeCamera() async {
@@ -1721,6 +2447,25 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
     }
   }
 
+  Future<void> _loadSettings() async {
+    final server = await AppSettings.getServerUrl();
+    final name = await AppSettings.getStudentName();
+    final roll = await AppSettings.getStudentRoll();
+    final branch = await AppSettings.getStudentBranch();
+    final section = await AppSettings.getStudentSection();
+    final year = await AppSettings.getStudentYear();
+    if (mounted) {
+      setState(() {
+        _serverUrl = server;
+        _studentName = name;
+        _studentRoll = roll;
+        _studentBranch = branch;
+        _studentSection = section;
+        _studentYear = year;
+      });
+    }
+  }
+
   void _setStatus(String message, Color color) {
     if (!mounted) return;
     setState(() {
@@ -1757,7 +2502,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       request.fields['device_id'] = deviceId;
 
       final streamed = await request.send().timeout(
-            const Duration(seconds: 15),
+            const Duration(seconds: 60),
           );
       final response = await http.Response.fromStream(streamed);
       final Map<String, dynamic> data =
@@ -1770,14 +2515,16 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
         final name = data['name'] ?? '';
         final rollNo = data['roll_no'] ?? '';
         final time = data['time'] ?? '';
+        final confidence = data['confidence'] ?? 0;
+        final confStr = confidence > 0 ? '\nMatch Confidence: $confidence%' : '';
         if (status == 'already_marked') {
           _setStatus(
-            'ℹ️ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo',
+            'ℹ️ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo$confStr',
             Colors.indigo.shade800,
           );
         } else {
           _setStatus(
-            '✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo\nTime: $time',
+            '✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo\nTime: $time$confStr',
             Colors.green.shade800,
           );
         }
@@ -1836,13 +2583,30 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 color: const Color(0xFF0F3460).withValues(alpha: 0.15),
-                child: Text(
-                  'Marking for: $_studentName (${_studentRoll.isNotEmpty ? _studentRoll : ""})',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F3460),
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Marking for: $_studentName (${_studentRoll.isNotEmpty ? _studentRoll : ""})',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF0F3460),
+                      ),
+                    ),
+                    if (_studentBranch.isNotEmpty || _studentSection.isNotEmpty || _studentYear.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '${AppSettings.getYearLabel(_studentYear.isNotEmpty ? _studentYear : _studentSection)} • Section ${_studentSection.isNotEmpty ? _studentSection : "N/A"} • ${kBranches[_studentBranch] ?? _studentBranch}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFE94560),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
 
@@ -1927,8 +2691,8 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                         )
                       : const Icon(Icons.camera, size: 28),
                   label: Text(
-                    _isProcessing ? 'Verifying…' : 'Capture & Verify',
-                    style: const TextStyle(fontSize: 16),
+                    _isProcessing ? 'Processing…' : 'Capture & Verify',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -1948,12 +2712,18 @@ class StudentAnalyticsScreen extends StatefulWidget {
   final String serverUrl;
   final String rollNo;
   final String studentName;
+  final String branch;
+  final String section;
+  final String year;
 
   const StudentAnalyticsScreen({
     super.key,
     required this.serverUrl,
     required this.rollNo,
     required this.studentName,
+    this.branch = '',
+    this.section = '',
+    this.year = '',
   });
 
   @override
@@ -2078,8 +2848,17 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
                                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 Text(
-                                  'Roll No: ${widget.rollNo}',
+                                  'Roll No: ${widget.rollNo}${widget.section.isNotEmpty ? " • Section ${widget.section}" : ""}',
                                   style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${AppSettings.getYearLabel(widget.year.isNotEmpty ? widget.year : widget.section)}${widget.branch.isNotEmpty ? " • ${kBranches[widget.branch] ?? widget.branch}" : ""}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F3460),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),

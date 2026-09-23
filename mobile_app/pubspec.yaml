@@ -16,8 +16,6 @@ dependencies:
   flutter_blue_plus: ^1.35.2
 
   # Camera capture (front-facing selfie)
-  camera: ^0.11.0+2
-
   # HTTP client for FastAPI backend communication
   http: ^1.2.2
 
@@ -39,7 +37,7 @@ dependencies:
 
   # Material Design icons (included with Flutter SDK)
   cupertino_icons: ^1.0.8
-
+  camera: ^0.12.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

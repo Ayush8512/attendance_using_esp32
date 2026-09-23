@@ -26,6 +26,18 @@ wheels/
 *.db
 *.sqlite3
 *.log
+*.env
+.env
+reports/
+*.xlsx
+*.pdf
+
+# College Private Roster & Data
+*roster*
+backend/load_iert_roster.py
+load_iert_roster.py
+*.apk
+
 
 # Flutter / Dart
 .dart_tool/

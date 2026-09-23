@@ -6,8 +6,10 @@ export default {
         container.innerHTML = `
             <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 class="text-3xl font-bold text-white">Registered Students</h2>
-                    <p class="text-gray-400 mt-1">Manage enrolled students, biometric locks, and security controls.</p>
+                    <h2 class="text-3xl font-bold text-white flex items-center gap-3">
+                        <i class="fas fa-university text-highlight"></i> Students & College Directory
+                    </h2>
+                    <p class="text-gray-400 mt-1">7 Branches (A–G) • 28 Sections (A1–G4) • Official IERT College Roster</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <!-- Registration Window Switch -->
@@ -18,30 +20,108 @@ export default {
                         </button>
                     </div>
 
-                    <div class="relative flex-1 md:w-56">
-                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" id="search-student" placeholder="Search name or roll..." class="w-full pl-10 pr-4 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
-                    </div>
                     <a href="#register" class="bg-highlight hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 font-medium shadow-md text-sm">
-                        <i class="fas fa-user-plus"></i> Register
+                        <i class="fas fa-user-plus"></i> Register Face
                     </a>
                 </div>
             </div>
 
+            <!-- Stats Bar -->
+            <div id="roster-stats-bar" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Total Roster</p>
+                        <p id="stat-total-roster" class="text-xl font-bold text-white">1,706</p>
+                    </div>
+                </div>
+                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center text-lg">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Registered Biometrics</p>
+                        <p id="stat-total-registered" class="text-xl font-bold text-white">0</p>
+                    </div>
+                </div>
+                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Branches</p>
+                        <p class="text-xl font-bold text-white">7 Branches (A–G)</p>
+                    </div>
+                </div>
+                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 uppercase font-semibold">Sections</p>
+                        <p class="text-xl font-bold text-white">28 Sections (A1–G4)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Buttons & Filters -->
+            <div class="bg-cardbg rounded-xl border border-gray-700 p-4 mb-6 shadow-md flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+                <!-- Tabs -->
+                <div class="flex items-center gap-2 border-b md:border-b-0 border-gray-700 pb-3 md:pb-0">
+                    <button id="tab-registered" class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-highlight text-white flex items-center gap-2 shadow">
+                        <i class="fas fa-fingerprint"></i> Registered Biometrics
+                    </button>
+                    <button id="tab-roster" class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2">
+                        <i class="fas fa-list-ol"></i> College Roster (1,706)
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="w-40">
+                        <select id="filter-branch" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            <option value="">All Branches</option>
+                            <option value="A">A - Computer Science (CSE)</option>
+                            <option value="B">B - Electronics (ECE)</option>
+                            <option value="C">C - Industrial (IPE)</option>
+                            <option value="D">D - Mechanical (ME)</option>
+                            <option value="E">E - Instrumentation (ICE)</option>
+                            <option value="F">F - Electrical (EE)</option>
+                            <option value="G">G - Civil (CE)</option>
+                        </select>
+                    </div>
+
+                    <div class="w-36">
+                        <select id="filter-section" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            <option value="">All Sections</option>
+                        </select>
+                    </div>
+
+                    <div class="relative flex-1 md:w-56">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="search-student" placeholder="Search name or roll..." class="w-full pl-9 pr-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
             <div class="bg-cardbg rounded-xl border border-gray-700 overflow-hidden shadow-lg">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse" id="students-table">
                         <thead>
                             <tr class="text-gray-400 text-xs uppercase bg-gray-800 bg-opacity-50 border-b border-gray-700">
                                 <th class="py-4 px-6 font-medium">#</th>
-                                <th class="py-4 px-6 font-medium">Name</th>
+                                <th class="py-4 px-6 font-medium">Branch & Section</th>
+                                <th class="py-4 px-6 font-medium">Student Name</th>
                                 <th class="py-4 px-6 font-medium">Roll Number</th>
-                                <th class="py-4 px-6 font-medium">Biometric Lock</th>
+                                <th class="py-4 px-6 font-medium">Biometric & Device Status</th>
                                 <th class="py-4 px-6 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="students-body" class="text-sm">
-                            <tr><td colspan="5" class="py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading students...</td></tr>
+                            <tr><td colspan="6" class="py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading students...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -86,21 +166,82 @@ export default {
             }
         });
 
-        // 2. Load & Render Students
+        // 2. Load Stats
         try {
-            const res = await api.getStudents();
-            let students = res.students || res || [];
-            const tbody = document.getElementById('students-body');
-            
-            const renderStudents = (data) => {
-                if (!Array.isArray(data) || data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-gray-500">No registered students found. Click "Register" to add.</td></tr>`;
-                    return;
+            const stats = await api.getRosterStats();
+            document.getElementById('stat-total-roster').textContent = (stats.total_roster || 1706).toLocaleString();
+            document.getElementById('stat-total-registered').textContent = `${stats.total_registered || 0} (${stats.overall_percentage || 0}%)`;
+        } catch (e) {
+            console.warn("Could not load roster stats", e);
+        }
+
+        // 3. Populate Section Dropdown
+        const branchSelect = document.getElementById('filter-branch');
+        const sectionSelect = document.getElementById('filter-section');
+
+        const updateSectionOptions = (selectedBranch) => {
+            sectionSelect.innerHTML = '<option value="">All Sections</option>';
+            const branches = selectedBranch ? [selectedBranch] : ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            branches.forEach(b => {
+                for (let y = 1; y <= 4; y++) {
+                    const sec = `${b}${y}`;
+                    const opt = document.createElement('option');
+                    opt.value = sec;
+                    opt.textContent = `Section ${sec}`;
+                    sectionSelect.appendChild(opt);
                 }
-                
-                tbody.innerHTML = data.map((s, index) => `
+            });
+        };
+        updateSectionOptions('');
+
+        branchSelect.addEventListener('change', () => {
+            updateSectionOptions(branchSelect.value);
+            loadCurrentView();
+        });
+        sectionSelect.addEventListener('change', () => loadCurrentView());
+
+        // 4. Tab Switcher
+        let activeTab = 'registered'; // 'registered' | 'roster'
+        const tabRegistered = document.getElementById('tab-registered');
+        const tabRoster = document.getElementById('tab-roster');
+
+        tabRegistered.addEventListener('click', () => {
+            activeTab = 'registered';
+            tabRegistered.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-highlight text-white flex items-center gap-2 shadow';
+            tabRoster.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2';
+            loadCurrentView();
+        });
+
+        tabRoster.addEventListener('click', () => {
+            activeTab = 'roster';
+            tabRoster.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-highlight text-white flex items-center gap-2 shadow';
+            tabRegistered.className = 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2';
+            loadCurrentView();
+        });
+
+        // 5. Load & Render Logic
+        const tbody = document.getElementById('students-body');
+
+        const renderRegisteredStudents = (students) => {
+            if (!Array.isArray(students) || students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No registered biometric profiles found matching filter. Click "Register Face" to add.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = students.map((s, index) => {
+                const secBadge = s.section ? `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">${s.section}</span>` : '<span class="text-xs text-gray-500">-</span>';
+                const branchBadge = s.branch_code ? `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${s.branch_code}</span>` : '';
+
+                return `
                     <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors group">
                         <td class="py-4 px-6 text-gray-400 font-mono">${index + 1}</td>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center gap-1.5">
+                                ${branchBadge}
+                                ${secBadge}
+                                ${s.class_roll_no ? `<span class="text-xs text-gray-400 font-mono">#${s.class_roll_no}</span>` : ''}
+                            </div>
+                        </td>
                         <td class="py-4 px-6 font-medium text-white">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-white shadow">
@@ -113,108 +254,197 @@ export default {
                             </div>
                         </td>
                         <td class="py-4 px-6 text-gray-300 font-mono font-medium">${s.roll_no}</td>
-                        <td class="py-4 px-6">
-                            ${s.is_locked
-                                ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30" title="Face profile is securely locked. Proxy/re-registration blocked.">
-                                    <i class="fas fa-lock text-xs"></i> Locked
-                                   </span>`
-                                : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse" title="Face profile is unlocked. Student can update/re-register face.">
-                                    <i class="fas fa-lock-open text-xs"></i> Unlocked
-                                   </span>`
-                            }
+                        <td class="py-4 px-6 space-y-1">
+                            <div>
+                                ${s.is_locked
+                                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                        <i class="fas fa-lock text-[10px]"></i> Locked
+                                       </span>`
+                                    : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                                        <i class="fas fa-lock-open text-[10px]"></i> Unlocked
+                                       </span>`
+                                }
+                            </div>
+                            <div>
+                                ${s.device_bound
+                                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-700 text-green-300 border border-green-500/30">
+                                        <i class="fas fa-mobile-alt text-[10px]"></i> Phone Bound
+                                       </span>`
+                                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-gray-700 text-gray-400">
+                                        <i class="fas fa-mobile-alt text-[10px]"></i> No Device
+                                       </span>`
+                                }
+                            </div>
                         </td>
-                        <td class="py-4 px-6 text-right space-x-2">
+                        <td class="py-4 px-6 text-right space-x-1.5">
                             ${s.is_locked
-                                ? `<button data-roll="${s.roll_no}" class="btn-unlock-student text-amber-400 hover:text-white hover:bg-amber-600 px-2.5 py-1.5 border border-amber-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Allow student to update face photo">
+                                ? `<button data-roll="${s.roll_no}" class="btn-unlock-student text-amber-400 hover:text-white hover:bg-amber-600 px-2 py-1 border border-amber-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Allow student to update face photo">
                                     <i class="fas fa-key"></i> Reset Face
                                    </button>`
-                                : `<button data-roll="${s.roll_no}" class="btn-lock-student text-blue-400 hover:text-white hover:bg-blue-600 px-2.5 py-1.5 border border-blue-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Lock face biometrics">
+                                : `<button data-roll="${s.roll_no}" class="btn-lock-student text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Lock face biometrics">
                                     <i class="fas fa-lock"></i> Lock
                                    </button>`
                             }
-                            <a href="#attendance?roll_no=${encodeURIComponent(s.roll_no)}" class="text-highlight hover:text-white px-2.5 py-1.5 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
-                                <i class="fas fa-calendar-alt"></i> Attendance
+                            <button data-roll="${s.roll_no}" class="btn-reset-dev text-purple-400 hover:text-white hover:bg-purple-600 px-2 py-1 border border-purple-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Reset phone binding so student can login on new phone">
+                                <i class="fas fa-sync-alt"></i> Reset Device
+                            </button>
+                            <a href="#attendance?roll_no=${encodeURIComponent(s.roll_no)}" class="text-highlight hover:text-white px-2 py-1 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                                <i class="fas fa-calendar-alt"></i> Logs
                             </a>
-                            <button data-roll="${s.roll_no}" data-name="${s.name}" class="btn-delete-student text-red-400 hover:text-white hover:bg-red-600 px-2.5 py-1.5 border border-red-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1">
-                                <i class="fas fa-trash-alt"></i> Delete
+                            <button data-roll="${s.roll_no}" data-name="${s.name}" class="btn-delete-student text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                                <i class="fas fa-trash-alt"></i>
                             </button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+            }).join('');
 
-                // Event handlers: Unlock Biometrics
-                tbody.querySelectorAll('.btn-unlock-student').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const roll = btn.getAttribute('data-roll');
-                        try {
-                            btn.disabled = true;
-                            const res = await api.unlockStudent(roll);
-                            showToast(res.message || `Biometrics unlocked for ${roll}`, "success");
-                            const updated = await api.getStudents();
-                            students = updated.students || updated || [];
-                            renderStudents(students);
-                        } catch (err) {
-                            showToast(`Failed to unlock: ${err.message}`, "error");
-                            btn.disabled = false;
-                        }
-                    });
+            // Attach action listeners
+            tbody.querySelectorAll('.btn-unlock-student').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    try {
+                        btn.disabled = true;
+                        const res = await api.unlockStudent(roll);
+                        showToast(res.message || `Biometrics unlocked for ${roll}`, "success");
+                        loadCurrentView();
+                    } catch (err) {
+                        showToast(`Failed to unlock: ${err.message}`, "error");
+                        btn.disabled = false;
+                    }
                 });
-
-                // Event handlers: Lock Biometrics
-                tbody.querySelectorAll('.btn-lock-student').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const roll = btn.getAttribute('data-roll');
-                        try {
-                            btn.disabled = true;
-                            const res = await api.lockStudent(roll);
-                            showToast(res.message || `Biometrics locked for ${roll}`, "success");
-                            const updated = await api.getStudents();
-                            students = updated.students || updated || [];
-                            renderStudents(students);
-                        } catch (err) {
-                            showToast(`Failed to lock: ${err.message}`, "error");
-                            btn.disabled = false;
-                        }
-                    });
-                });
-
-                // Event handlers: Delete Student
-                tbody.querySelectorAll('.btn-delete-student').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const roll = btn.getAttribute('data-roll');
-                        const name = btn.getAttribute('data-name');
-                        if (!confirm(`Are you sure you want to delete student '${name}' (${roll})? This will also permanently remove their attendance records.`)) {
-                            return;
-                        }
-                        try {
-                            await api.deleteStudent(roll);
-                            showToast(`Student ${name} deleted successfully.`, "success");
-                            const updatedRes = await api.getStudents();
-                            students = updatedRes.students || updatedRes || [];
-                            renderStudents(students);
-                        } catch (err) {
-                            showToast(`Failed to delete student: ${err.message}`, "error");
-                        }
-                    });
-                });
-            };
-
-            renderStudents(students);
-
-            document.getElementById('search-student').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const filtered = students.filter(s => 
-                    (s.name && s.name.toLowerCase().includes(term)) || 
-                    (s.roll_no && s.roll_no.toLowerCase().includes(term))
-                );
-                renderStudents(filtered);
             });
 
-        } catch (error) {
-            document.getElementById('students-body').innerHTML = `
-                <tr><td colspan="5" class="py-8 text-center text-red-400">Failed to load students: ${error.message}</td></tr>
-            `;
-        }
+            tbody.querySelectorAll('.btn-lock-student').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    try {
+                        btn.disabled = true;
+                        const res = await api.lockStudent(roll);
+                        showToast(res.message || `Biometrics locked for ${roll}`, "success");
+                        loadCurrentView();
+                    } catch (err) {
+                        showToast(`Failed to lock: ${err.message}`, "error");
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            tbody.querySelectorAll('.btn-reset-dev').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    try {
+                        btn.disabled = true;
+                        const res = await fetch(`/admin/students/${encodeURIComponent(roll)}/reset-device`, { method: 'POST' });
+                        if (!res.ok) {
+                            const errData = await res.json().catch(() => ({}));
+                            throw new Error(errData.detail || errData.message || 'Server returned ' + res.status);
+                        }
+                        const data = await res.json();
+                        showToast(data.message || `Device binding reset for ${roll}`, "success");
+                        loadCurrentView();
+                    } catch (err) {
+                        showToast(`Failed to reset device: ${err.message}`, "error");
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            tbody.querySelectorAll('.btn-delete-student').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    const name = btn.getAttribute('data-name');
+                    if (!confirm(`Delete student '${name}' (${roll})? Biometrics and records will be removed.`)) return;
+                    try {
+                        await api.deleteStudent(roll);
+                        showToast(`Student ${name} deleted successfully.`, "success");
+                        loadCurrentView();
+                    } catch (err) {
+                        showToast(`Failed to delete: ${err.message}`, "error");
+                    }
+                });
+            });
+        };
+
+        const renderRosterStudents = (students) => {
+            if (!Array.isArray(students) || students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No students found in college roster matching filter.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = students.map((s, index) => {
+                const secBadge = `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">${s.section}</span>`;
+                const branchBadge = `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${s.branch_code}</span>`;
+
+                return `
+                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                        <td class="py-4 px-6 text-gray-400 font-mono">${index + 1}</td>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center gap-1.5">
+                                ${branchBadge}
+                                ${secBadge}
+                                <span class="text-xs text-gray-400 font-mono">#${s.class_roll_no}</span>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 font-medium text-white">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+                                    ${s.name ? s.name.charAt(0).toUpperCase() : '?'}
+                                </div>
+                                <span class="text-sm font-semibold">${s.name}</span>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 text-gray-300 font-mono font-medium">${s.primary_roll_no}</td>
+                        <td class="py-4 px-6">
+                            ${s.is_registered
+                                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                                    <i class="fas fa-check-circle text-xs"></i> Enrolled
+                                   </span>`
+                                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
+                                    <i class="fas fa-hourglass-start text-xs"></i> Pending Face
+                                   </span>`
+                            }
+                        </td>
+                        <td class="py-4 px-6 text-right">
+                            ${s.is_registered
+                                ? `<a href="#attendance?roll_no=${encodeURIComponent(s.primary_roll_no)}" class="text-highlight hover:text-white px-2.5 py-1.5 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                                    <i class="fas fa-calendar-alt"></i> Attendance
+                                   </a>`
+                                : `<a href="#register?roll_no=${encodeURIComponent(s.primary_roll_no)}&name=${encodeURIComponent(s.name)}&section=${encodeURIComponent(s.section)}" class="bg-highlight hover:bg-red-600 text-white px-2.5 py-1.5 rounded-lg transition-colors text-xs inline-flex items-center gap-1 shadow font-medium">
+                                    <i class="fas fa-camera"></i> Enroll Face
+                                   </a>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        const loadCurrentView = async () => {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading data...</td></tr>`;
+            const b = branchSelect.value;
+            const sec = sectionSelect.value;
+            const q = document.getElementById('search-student').value.trim();
+
+            try {
+                if (activeTab === 'registered') {
+                    const res = await api.getStudents(b, sec, q);
+                    renderRegisteredStudents(res.students || res || []);
+                } else {
+                    const res = await api.getRosterStudents(sec, b, '', q, 300, 0);
+                    renderRosterStudents(res.students || res || []);
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-red-400">Failed to load data: ${err.message}</td></tr>`;
+            }
+        };
+
+        document.getElementById('search-student').addEventListener('input', () => {
+            loadCurrentView();
+        });
+
+        loadCurrentView();
     }
 };
+
 

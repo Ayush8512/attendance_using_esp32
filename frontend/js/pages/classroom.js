@@ -169,20 +169,25 @@ export default {
 
                 grid.innerHTML = presentRecords.map(s => `
                     <div class="bg-gray-800 bg-opacity-50 border border-gray-700 rounded-lg p-4 flex flex-col items-center relative overflow-hidden group hover:border-highlight transition-colors">
-                        <div class="absolute top-2 right-2 text-xs font-mono text-gray-400">${s.time}</div>
+                        <div class="absolute top-2 right-2 text-[10px] font-mono text-gray-400">${s.time}</div>
                         
-                        <div class="w-14 h-14 rounded-full bg-accent flex items-center justify-center text-lg font-bold text-white mb-2 shadow-inner">
+                        <div class="w-13 h-13 rounded-full bg-accent flex items-center justify-center text-base font-bold text-white mb-2 shadow-inner">
                             ${s.name ? s.name.charAt(0).toUpperCase() : '?'}
                         </div>
                         
-                        <h4 class="text-white font-medium text-center truncate w-full text-sm">${s.name || '-'}</h4>
-                        <p class="text-xs text-gray-400 font-mono mb-2">${s.roll_no}</p>
+                        <h4 class="text-white font-medium text-center truncate w-full text-xs">${s.name || '-'}</h4>
+                        <p class="text-[11px] text-gray-400 font-mono mb-1.5">${s.roll_no}</p>
                         
-                        <div class="w-full flex items-center justify-between mt-auto pt-2 border-t border-gray-700 text-xs">
-                            <span class="bg-gray-900 px-2 py-0.5 rounded text-gray-400 font-mono inline-flex items-center gap-1">
-                                <i class="fas fa-camera text-highlight text-[10px]"></i> Face
+                        <div class="flex items-center gap-1 mb-2">
+                            ${s.branch_code ? `<span class="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 text-[10px] font-semibold">${s.branch_code}</span>` : ''}
+                            ${s.section ? `<span class="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold">${s.section}</span>` : ''}
+                        </div>
+
+                        <div class="w-full flex items-center justify-between mt-auto pt-2 border-t border-gray-700 text-[11px]">
+                            <span class="bg-gray-900 px-1.5 py-0.5 rounded text-gray-400 font-mono inline-flex items-center gap-1 text-[10px]">
+                                <i class="fas fa-camera text-highlight text-[9px]"></i> Face
                             </span>
-                            <span class="text-green-400 font-medium inline-flex items-center gap-1">
+                            <span class="text-green-400 font-medium inline-flex items-center gap-1 text-[10px]">
                                 <i class="fas fa-check-circle"></i> Verified
                             </span>
                         </div>
