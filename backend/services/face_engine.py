@@ -214,7 +214,7 @@ class FaceIndex:
         self.is_loaded = False
 
     def load_all(self, students_data):
-        "\""Load all students into numpy matrix for vectorized search."\""
+        """Load all students into numpy matrix for vectorized search."""
         if not students_data:
             self.roll_numbers = []
             self.encodings_matrix = np.empty((0, 128))
@@ -229,7 +229,7 @@ class FaceIndex:
         logger.info(f"FaceIndex loaded {len(self.roll_numbers)} students into optimized numpy matrix.")
 
     def add_student(self, roll_no: str, encoding: list):
-        "\""Append a new student without full reload."\""
+        """Append a new student without full reload."""
         self.roll_numbers.append(roll_no)
         new_row = np.array(encoding).reshape(1, -1)
         if self.encodings_matrix.shape[0] == 0:
@@ -238,7 +238,7 @@ class FaceIndex:
             self.encodings_matrix = np.vstack([self.encodings_matrix, new_row])
 
     def search(self, unknown_encoding: list, tolerance: float = FACE_MATCH_TOLERANCE):
-        "\""Returns (best_roll_no, distance, confidence) or (None, 0, 0)"\""
+        """Returns (best_roll_no, distance, confidence) or (None, 0, 0)"""
         if self.encodings_matrix.shape[0] == 0:
             return None, 0.0, 0.0
             
