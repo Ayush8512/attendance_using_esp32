@@ -42,6 +42,11 @@ export const api = {
     deleteStudent: (rollNo) => fetchWithHandler(`/students/${encodeURIComponent(rollNo)}`, {
         method: "DELETE"
     }),
+    updateStudent: (rollNo, data) => fetchWithHandler(`/students/${encodeURIComponent(rollNo)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    }),
     unlockStudent: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/unlock`, {
         method: "POST"
     }),
@@ -81,6 +86,19 @@ export const api = {
         const qs = query.length ? `?${query.join('&')}` : '';
         return fetchWithHandler(`/attendance${qs}`);
     },
+    updateAttendance: (id, data) => fetchWithHandler(`/attendance/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    }),
+    deleteAttendance: (id) => fetchWithHandler(`/attendance/${id}`, {
+        method: "DELETE"
+    }),
+    markManualAttendance: (data) => fetchWithHandler("/attendance/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    }),
 
     // Timetable & Strict 10-Min Window Management
     getTimetable: () => fetchWithHandler("/timetable"),

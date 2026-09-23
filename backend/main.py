@@ -36,6 +36,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 # Try loading environment variables from .env file
 try:
@@ -85,6 +86,32 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL", SMTP_USER)
 # Students can only mark attendance within `allowed_window_minutes` (default 10)
 # after class start time.
 # ---------------------------------------------------------------------------
+# Pydantic Schemas for Dashboard Actions (Edit, Delete, Manual Attendance)
+# ---------------------------------------------------------------------------
+
+class AttendanceUpdate(BaseModel):
+    status: str | None = None
+    subject: str | None = None
+    date: str | None = None
+    time: str | None = None
+    section: str | None = None
+    branch_code: str | None = None
+
+class AttendanceManualCreate(BaseModel):
+    roll_no: str
+    subject: str
+    date: str | None = None
+    time: str | None = None
+    status: str = "Present"
+    section: str | None = None
+    branch_code: str | None = None
+
+class StudentProfileUpdate(BaseModel):
+    name: str | None = None
+    branch_code: str | None = None
+    section: str | None = None
+    year: int | None = None
+    class_roll_no: str | None = None
 
 # ---------------------------------------------------------------------------
 # College Branch & Section Configuration (IERT Prayagraj 7 Branches & 4 Years)
@@ -1646,9 +1673,9 @@ async def get_attendance(
     db = await get_db()
     try:
         query = """
-            SELECT a.roll_no, s.name, a.date, a.time, a.subject, a.status,
-                   COALESCE(s.branch_code, a.branch_code, '') as branch_code,
-                   COALESCE(s.section, a.section, '') as section,
+            SELECT a.id, a.roll_no, s.name, a.date, a.time, a.subject, a.status,
+                   COALESCE(NULLIF(s.branch_code, ''), NULLIF(a.branch_code, ''), '') as branch_code,
+                   COALESCE(NULLIF(s.section, ''), NULLIF(a.section, ''), '') as section,
                    COALESCE(s.class_roll_no, '') as class_roll_no
             FROM attendance a 
             JOIN students s ON a.roll_no = s.roll_no 
@@ -1681,6 +1708,7 @@ async def get_attendance(
 
     records = [
         {
+            "id": row["id"],
             "roll_no": row["roll_no"],
             "name": row["name"],
             "date": row["date"],
@@ -1696,6 +1724,107 @@ async def get_attendance(
     ]
 
     return {"status": "success", "count": len(records), "records": records}
+
+
+@app.put("/attendance/{record_id:int}")
+async def update_attendance_record(record_id: int, payload: AttendanceUpdate):
+    """Update an individual attendance record (subject, status, date, time, section, branch)."""
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT id, roll_no FROM attendance WHERE id = ?", (record_id,))
+        rec = await cur.fetchone()
+        if not rec:
+            raise HTTPException(status_code=404, detail=f"Attendance record with ID {record_id} not found.")
+
+        updates = []
+        params = []
+        if payload.status is not None and payload.status.strip():
+            updates.append("status = ?")
+            params.append(payload.status.strip())
+        if payload.subject is not None and payload.subject.strip():
+            updates.append("subject = ?")
+            params.append(payload.subject.strip())
+        if payload.date is not None and payload.date.strip():
+            updates.append("date = ?")
+            params.append(payload.date.strip())
+        if payload.time is not None and payload.time.strip():
+            updates.append("time = ?")
+            params.append(payload.time.strip())
+        if payload.section is not None:
+            updates.append("section = ?")
+            params.append(payload.section.strip().upper())
+        if payload.branch_code is not None:
+            updates.append("branch_code = ?")
+            params.append(payload.branch_code.strip().upper())
+
+        if updates:
+            params.append(record_id)
+            await db.execute(f"UPDATE attendance SET {', '.join(updates)} WHERE id = ?", params)
+            await db.commit()
+
+        return {"status": "success", "message": f"Attendance record #{record_id} updated successfully."}
+    finally:
+        await db.close()
+
+
+@app.delete("/attendance/{record_id:int}")
+async def delete_attendance_record(record_id: int):
+    """Delete an individual attendance record by ID."""
+    db = await get_db()
+    try:
+        cur = await db.execute("DELETE FROM attendance WHERE id = ?", (record_id,))
+        await db.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Attendance record with ID {record_id} not found.")
+        return {"status": "success", "message": f"Attendance record #{record_id} deleted successfully."}
+    finally:
+        await db.close()
+
+
+@app.post("/attendance/manual")
+async def add_manual_attendance(payload: AttendanceManualCreate):
+    """Manually add an attendance record for a student."""
+    clean_roll = payload.roll_no.strip().upper()
+    db = await get_db()
+    try:
+        # Check student exists in students table
+        cur = await db.execute("SELECT roll_no, name, branch_code, section, year FROM students WHERE roll_no = ?", (clean_roll,))
+        stu = await cur.fetchone()
+        if not stu:
+            # Check college roster
+            r_cur = await db.execute("SELECT primary_roll_no, name, branch_code, section, year FROM college_roster WHERE primary_roll_no LIKE ? OR name LIKE ?", (f"%{clean_roll}%", f"%{clean_roll}%"))
+            r_stu = await r_cur.fetchone()
+            if not r_stu:
+                raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found in students or college roster.")
+            student_name = r_stu["name"]
+            sec = payload.section or r_stu["section"] or ""
+            b_code = payload.branch_code or r_stu["branch_code"] or ""
+            yr = r_stu["year"] or 1
+        else:
+            student_name = stu["name"]
+            sec = payload.section or stu["section"] or ""
+            b_code = payload.branch_code or stu["branch_code"] or ""
+            yr = stu["year"] or 1
+
+        rec_date = payload.date.strip() if payload.date else datetime.now().strftime("%Y-%m-%d")
+        rec_time = payload.time.strip() if payload.time else datetime.now().strftime("%H:%M:%S")
+        status_val = payload.status.strip() if payload.status else "Present"
+        subj_val = payload.subject.strip()
+
+        await db.execute(
+            """
+            INSERT INTO attendance (roll_no, date, time, status, subject, section, branch_code, year)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (clean_roll, rec_date, rec_time, status_val, subj_val, sec, b_code, yr)
+        )
+        await db.commit()
+        return {
+            "status": "success",
+            "message": f"Manual attendance marked for '{student_name}' ({clean_roll}) in {subj_val} as {status_val}.",
+        }
+    finally:
+        await db.close()
 
 
 @app.get("/students")
@@ -1862,6 +1991,70 @@ async def get_student_profile(roll_no: str):
             "is_locked": bool(student["is_locked"]) if student["is_locked"] is not None else True,
             "device_id": student["device_id"] or "",
         }
+    finally:
+        await db.close()
+
+
+@app.put("/students/{roll_no:path}")
+async def update_student_profile(roll_no: str, payload: StudentProfileUpdate):
+    """Update student profile (name, branch, section, year, class roll) and sync attendance records."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT roll_no, name FROM students WHERE roll_no = ?", (clean_roll,))
+        student = await cur.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
+
+        updates = []
+        params = []
+        if payload.name is not None and payload.name.strip():
+            updates.append("name = ?")
+            params.append(payload.name.strip())
+        if payload.branch_code is not None and payload.branch_code.strip():
+            b_code = payload.branch_code.strip().upper()
+            b_name = BRANCH_METADATA.get(b_code, {}).get("name", "")
+            updates.append("branch_code = ?")
+            params.append(b_code)
+            updates.append("branch_name = ?")
+            params.append(b_name)
+        if payload.section is not None:
+            sec_val = payload.section.strip().upper()
+            updates.append("section = ?")
+            params.append(sec_val)
+        if payload.year is not None:
+            updates.append("year = ?")
+            params.append(payload.year)
+        if payload.class_roll_no is not None:
+            updates.append("class_roll_no = ?")
+            params.append(payload.class_roll_no.strip())
+
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            params.append(clean_roll)
+            await db.execute(f"UPDATE students SET {', '.join(updates)} WHERE roll_no = ?", params)
+
+            # Sync existing attendance records with updated branch, section, year
+            att_updates = []
+            att_params = []
+            if payload.branch_code is not None and payload.branch_code.strip():
+                att_updates.append("branch_code = ?")
+                att_params.append(payload.branch_code.strip().upper())
+            if payload.section is not None:
+                att_updates.append("section = ?")
+                att_params.append(payload.section.strip().upper())
+            if payload.year is not None:
+                att_updates.append("year = ?")
+                att_params.append(payload.year)
+
+            if att_updates:
+                att_params.append(clean_roll)
+                await db.execute(f"UPDATE attendance SET {', '.join(att_updates)} WHERE roll_no = ?", att_params)
+
+            await db.commit()
+
+        return {"status": "success", "message": f"Student '{clean_roll}' profile updated successfully."}
     finally:
         await db.close()
 

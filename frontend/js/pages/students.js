@@ -14,15 +14,11 @@ export default {
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <!-- Registration Window Switch -->
                     <div id="reg-status-container" class="flex items-center gap-2 bg-cardbg px-3 py-2 rounded-lg border border-gray-700">
-                        <span class="text-xs text-gray-400 font-medium">Registration:</span>
+                        <span class="text-xs text-gray-400 font-medium">App Registration:</span>
                         <button id="btn-toggle-reg" class="px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors bg-gray-700 text-gray-300">
                             <i class="fas fa-spinner fa-spin"></i> Checking...
                         </button>
                     </div>
-
-                    <a href="#register" class="bg-highlight hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 font-medium shadow-md text-sm">
-                        <i class="fas fa-user-plus"></i> Register Face
-                    </a>
                 </div>
             </div>
 
@@ -126,6 +122,71 @@ export default {
                     </table>
                 </div>
             </div>
+
+            <!-- Edit Student Profile Modal -->
+            <div id="edit-student-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-700 pb-3">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-user-edit text-highlight"></i> Edit Student Profile
+                        </h3>
+                        <button id="btn-close-edit-student" class="text-gray-400 hover:text-white text-lg">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="edit-student-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Roll Number</label>
+                            <input type="text" id="edit-student-roll" disabled class="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 font-mono text-sm cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Full Name *</label>
+                            <input type="text" id="edit-student-name" required class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Branch</label>
+                                <select id="edit-student-branch" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="A">A (CSE)</option>
+                                    <option value="B">B (ECE)</option>
+                                    <option value="C">C (IPE)</option>
+                                    <option value="D">D (ME)</option>
+                                    <option value="E">E (ICE)</option>
+                                    <option value="F">F (EE)</option>
+                                    <option value="G">G (CE)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Year</label>
+                                <select id="edit-student-year" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="1">1st Yr</option>
+                                    <option value="2">2nd Yr</option>
+                                    <option value="3">3rd Yr</option>
+                                    <option value="4">4th Yr</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Section</label>
+                                <select id="edit-student-section" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Class Roll Number</label>
+                            <input type="text" id="edit-student-classroll" placeholder="e.g. 25" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                        </div>
+
+                        <div class="pt-2 flex justify-end gap-3">
+                            <button type="button" id="btn-cancel-edit-student" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-save-edit-student" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         `;
 
         // 1. Manage Registration Setting
@@ -224,7 +285,7 @@ export default {
 
         const renderRegisteredStudents = (students) => {
             if (!Array.isArray(students) || students.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No registered biometric profiles found matching filter. Click "Register Face" to add.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">No registered biometric profiles found matching filter. Students register face biometrics securely from their mobile app.</td></tr>`;
                 return;
             }
 
@@ -277,6 +338,9 @@ export default {
                             </div>
                         </td>
                         <td class="py-4 px-6 text-right space-x-1.5">
+                            <button data-roll="${s.roll_no}" data-name="${s.name || ''}" data-branch="${s.branch_code || ''}" data-section="${s.section || ''}" data-year="${s.year || 1}" data-classroll="${s.class_roll_no || ''}" class="btn-edit-student text-green-400 hover:text-white hover:bg-green-600 px-2 py-1 border border-green-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Edit student profile">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
                             ${s.is_locked
                                 ? `<button data-roll="${s.roll_no}" class="btn-unlock-student text-amber-400 hover:text-white hover:bg-amber-600 px-2 py-1 border border-amber-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Allow student to update face photo">
                                     <i class="fas fa-key"></i> Reset Face
@@ -350,6 +414,28 @@ export default {
                 });
             });
 
+            tbody.querySelectorAll('.btn-edit-student').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const roll = btn.getAttribute('data-roll');
+                    const name = btn.getAttribute('data-name');
+                    const branch = btn.getAttribute('data-branch') || 'A';
+                    const section = btn.getAttribute('data-section') || '';
+                    const year = btn.getAttribute('data-year') || '1';
+                    const classroll = btn.getAttribute('data-classroll') || '';
+
+                    editRoll.value = roll;
+                    editName.value = name;
+                    editBranch.value = branch || 'A';
+                    editYear.value = year || '1';
+                    populateEditSections();
+                    if (section) {
+                        editSection.value = section;
+                    }
+                    editClassRoll.value = classroll;
+                    editModal.classList.remove('hidden');
+                });
+            });
+
             tbody.querySelectorAll('.btn-delete-student').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const roll = btn.getAttribute('data-roll');
@@ -365,6 +451,67 @@ export default {
                 });
             });
         };
+
+        // Edit Student Modal Controls
+        const editModal = document.getElementById('edit-student-modal');
+        const editRoll = document.getElementById('edit-student-roll');
+        const editName = document.getElementById('edit-student-name');
+        const editBranch = document.getElementById('edit-student-branch');
+        const editYear = document.getElementById('edit-student-year');
+        const editSection = document.getElementById('edit-student-section');
+        const editClassRoll = document.getElementById('edit-student-classroll');
+
+        const populateEditSections = () => {
+            const b = editBranch.value || 'A';
+            const y = editYear.value || '1';
+            editSection.innerHTML = '';
+            for (let yr = 1; yr <= 4; yr++) {
+                const sec = `${b}${yr}`;
+                const opt = document.createElement('option');
+                opt.value = sec;
+                opt.textContent = `Section ${sec}`;
+                if (yr == y) opt.selected = true;
+                editSection.appendChild(opt);
+            }
+        };
+
+        editBranch.addEventListener('change', populateEditSections);
+        editYear.addEventListener('change', () => {
+            const b = editBranch.value || 'A';
+            const y = editYear.value || '1';
+            editSection.value = `${b}${y}`;
+        });
+
+        const closeEditStudentModal = () => editModal.classList.add('hidden');
+        document.getElementById('btn-close-edit-student').addEventListener('click', closeEditStudentModal);
+        document.getElementById('btn-cancel-edit-student').addEventListener('click', closeEditStudentModal);
+
+        document.getElementById('edit-student-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const roll = editRoll.value;
+            const payload = {
+                name: editName.value.trim(),
+                branch_code: editBranch.value.trim().toUpperCase(),
+                year: parseInt(editYear.value) || 1,
+                section: editSection.value.trim().toUpperCase(),
+                class_roll_no: editClassRoll.value.trim()
+            };
+            const saveBtn = document.getElementById('btn-save-edit-student');
+            const origText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+            try {
+                const res = await api.updateStudent(roll, payload);
+                showToast(res.message || `Student ${roll} profile updated successfully!`, "success");
+                closeEditStudentModal();
+                loadCurrentView();
+            } catch (err) {
+                showToast(`Update failed: ${err.message}`, "error");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = origText;
+            }
+        });
 
         const renderRosterStudents = (students) => {
             if (!Array.isArray(students) || students.length === 0) {
@@ -410,9 +557,9 @@ export default {
                                 ? `<a href="#attendance?roll_no=${encodeURIComponent(s.primary_roll_no)}" class="text-highlight hover:text-white px-2.5 py-1.5 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
                                     <i class="fas fa-calendar-alt"></i> Attendance
                                    </a>`
-                                : `<a href="#register?roll_no=${encodeURIComponent(s.primary_roll_no)}&name=${encodeURIComponent(s.name)}&section=${encodeURIComponent(s.section)}" class="bg-highlight hover:bg-red-600 text-white px-2.5 py-1.5 rounded-lg transition-colors text-xs inline-flex items-center gap-1 shadow font-medium">
-                                    <i class="fas fa-camera"></i> Enroll Face
-                                   </a>`
+                                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-gray-700/60 text-gray-400 border border-gray-600" title="Student registers face via mobile app">
+                                    <i class="fas fa-mobile-alt text-[10px]"></i> Mobile App
+                                   </span>`
                             }
                         </td>
                     </tr>

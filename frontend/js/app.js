@@ -1,6 +1,5 @@
 import { renderNavbar } from './components/navbar.js';
 import dashboardPage from './pages/dashboard.js';
-import registerPage from './pages/register.js';
 import studentsPage from './pages/students.js';
 import attendancePage from './pages/attendance.js';
 import classroomPage from './pages/classroom.js';
@@ -9,7 +8,6 @@ import timetablePage from './pages/timetable.js';
 const routes = {
     '#dashboard': dashboardPage,
     '#timetable': timetablePage,
-    '#register': registerPage,
     '#students': studentsPage,
     '#attendance': attendancePage,
     '#classroom': classroomPage
@@ -24,6 +22,10 @@ function router() {
     }
 
     const [path, query] = hash.split('?');
+    if (path === '#register') {
+        window.location.hash = '#students';
+        return;
+    }
     const page = routes[path] || routes['#dashboard'];
     
     const appDiv = document.getElementById('app');

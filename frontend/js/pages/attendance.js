@@ -14,7 +14,10 @@ export default {
                     </h2>
                     <p class="text-gray-400 mt-1">Search, filter by branch/section/subject/date, and generate Excel sheets.</p>
                 </div>
-                <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <button id="btn-manual-att-open" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold shadow-md">
+                        <i class="fas fa-plus-circle"></i> + Mark Attendance
+                    </button>
                     <button id="btn-end-class-modal" class="bg-accent hover:bg-blue-900 border border-blue-500/50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold shadow-md">
                         <i class="fas fa-paper-plane text-yellow-400"></i> End Class & Email Sheet
                     </button>
@@ -83,10 +86,11 @@ export default {
                                 <th class="py-4 px-6 font-medium">Roll Number</th>
                                 <th class="py-4 px-6 font-medium">Method</th>
                                 <th class="py-4 px-6 font-medium">Status</th>
+                                <th class="py-4 px-6 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="attendance-body" class="text-sm">
-                            <tr><td colspan="7" class="py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading records...</td></tr>
+                            <tr><td colspan="8" class="py-8 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading records...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -153,6 +157,154 @@ export default {
                             <button type="button" id="btn-cancel-modal" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
                             <button type="submit" id="btn-submit-end-class" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
                                 <i class="fas fa-file-excel"></i> Generate & Send Sheet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manual Attendance Modal -->
+            <div id="manual-att-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-700 pb-3">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-user-plus text-emerald-400"></i> Mark Manual Attendance
+                        </h3>
+                        <button id="btn-close-manual-att" class="text-gray-400 hover:text-white text-lg">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="manual-att-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Student Roll Number *</label>
+                            <input type="text" id="manual-roll" required placeholder="e.g. 240110030025" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm font-mono uppercase">
+                            <p id="manual-student-hint" class="text-[11px] text-gray-400 mt-1 italic"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Subject Name *</label>
+                            <input type="text" id="manual-subject" required placeholder="e.g. VLSI Design" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Date *</label>
+                                <input type="date" id="manual-date" required class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Time</label>
+                                <input type="time" id="manual-time" step="1" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Status</label>
+                                <select id="manual-status" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="Present">Present</option>
+                                    <option value="Absent">Absent</option>
+                                    <option value="Late">Late</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Branch</label>
+                                <select id="manual-branch" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="">Auto</option>
+                                    <option value="A">A (CSE)</option>
+                                    <option value="B">B (ECE)</option>
+                                    <option value="C">C (IPE)</option>
+                                    <option value="D">D (ME)</option>
+                                    <option value="E">E (ICE)</option>
+                                    <option value="F">F (EE)</option>
+                                    <option value="G">G (CE)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Section</label>
+                                <select id="manual-section" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="">Auto</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex justify-end gap-3">
+                            <button type="button" id="btn-cancel-manual-att" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-submit-manual-att" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold flex items-center gap-2">
+                                <i class="fas fa-check"></i> Mark Attendance
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit Attendance Record Modal -->
+            <div id="edit-att-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-gray-700 pb-3">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-edit text-highlight"></i> Edit Attendance Record
+                        </h3>
+                        <button id="btn-close-edit-att" class="text-gray-400 hover:text-white text-lg">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <form id="edit-att-form" class="space-y-4">
+                        <input type="hidden" id="edit-att-id">
+                        <div class="bg-darkbg p-3 rounded-lg border border-gray-700">
+                            <p class="text-xs text-gray-400">Student</p>
+                            <p id="edit-att-student-label" class="text-sm font-bold text-white"></p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Subject *</label>
+                            <input type="text" id="edit-att-subject" required class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Date *</label>
+                                <input type="date" id="edit-att-date" required class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Time *</label>
+                                <input type="time" id="edit-att-time" step="1" required class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Status</label>
+                                <select id="edit-att-status" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="Present">Present</option>
+                                    <option value="Absent">Absent</option>
+                                    <option value="Late">Late</option>
+                                    <option value="Excused">Excused</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Branch</label>
+                                <select id="edit-att-branch" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="">None</option>
+                                    <option value="A">A (CSE)</option>
+                                    <option value="B">B (ECE)</option>
+                                    <option value="C">C (IPE)</option>
+                                    <option value="D">D (ME)</option>
+                                    <option value="E">E (ICE)</option>
+                                    <option value="F">F (EE)</option>
+                                    <option value="G">G (CE)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-300 mb-1">Section</label>
+                                <select id="edit-att-section" class="w-full px-2 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-xs">
+                                    <option value="">None</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex justify-end gap-3">
+                            <button type="button" id="btn-cancel-edit-att" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-save-edit-att" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
+                                <i class="fas fa-save"></i> Save Changes
                             </button>
                         </div>
                     </form>
@@ -279,7 +431,7 @@ export default {
                     });
 
                     if (currentRecords.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-gray-500">No attendance records found for this filter.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-gray-500">No attendance records found for this filter.</td></tr>`;
                         return;
                     }
 
@@ -314,13 +466,221 @@ export default {
                                 <td class="py-4 px-6">
                                     <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">${r.status || 'Present'}</span>
                                 </td>
+                                <td class="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
+                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-subject="${r.subject || ''}" data-date="${r.date}" data-time="${r.time}" data-status="${r.status || 'Present'}" data-branch="${r.branch_code || ''}" data-section="${r.section || ''}" class="btn-edit-att text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Edit attendance record">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-date="${r.date}" data-subj="${r.subject || ''}" class="btn-delete-att text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Delete record">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
                             </tr>
                         `;
                     }).join('');
+
+                    // Wire row Edit buttons
+                    tbody.querySelectorAll('.btn-edit-att').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const id = btn.getAttribute('data-id');
+                            const roll = btn.getAttribute('data-roll');
+                            const name = btn.getAttribute('data-name');
+                            const subject = btn.getAttribute('data-subject');
+                            const date = btn.getAttribute('data-date');
+                            const time = btn.getAttribute('data-time');
+                            const status = btn.getAttribute('data-status');
+                            const branch = btn.getAttribute('data-branch') || '';
+                            const section = btn.getAttribute('data-section') || '';
+
+                            document.getElementById('edit-att-id').value = id;
+                            document.getElementById('edit-att-student-label').textContent = `${name || 'Student'} (${roll})`;
+                            document.getElementById('edit-att-subject').value = subject || '';
+                            document.getElementById('edit-att-date').value = date;
+                            document.getElementById('edit-att-time').value = time;
+                            document.getElementById('edit-att-status').value = status;
+
+                            const editBranch = document.getElementById('edit-att-branch');
+                            const editSection = document.getElementById('edit-att-section');
+                            editBranch.value = branch;
+                            populateEditSections(branch);
+                            if (section) editSection.value = section;
+
+                            document.getElementById('edit-att-modal').classList.remove('hidden');
+                        });
+                    });
+
+                    // Wire row Delete buttons
+                    tbody.querySelectorAll('.btn-delete-att').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            const roll = btn.getAttribute('data-roll');
+                            const name = btn.getAttribute('data-name');
+                            const subj = btn.getAttribute('data-subj');
+                            const date = btn.getAttribute('data-date');
+
+                            if (!confirm(`Delete attendance record #${id} for ${name || roll} on ${date} (${subj})?`)) return;
+                            try {
+                                const res = await api.deleteAttendance(id);
+                                showToast(res.message || `Record #${id} deleted`, "success");
+                                loadRecords();
+                            } catch (err) {
+                                showToast(`Failed to delete record: ${err.message}`, "error");
+                            }
+                        });
+                    });
+
                 } catch (e) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-red-400">Error loading records: ${e.message}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-red-400">Error loading records: ${e.message}</td></tr>`;
                 }
             };
+
+            // Edit Attendance Modal Controls
+            const editAttModal = document.getElementById('edit-att-modal');
+            const closeEditAttModal = () => editAttModal.classList.add('hidden');
+            document.getElementById('btn-close-edit-att').addEventListener('click', closeEditAttModal);
+            document.getElementById('btn-cancel-edit-att').addEventListener('click', closeEditAttModal);
+
+            const populateEditSections = (selBranch) => {
+                const editSection = document.getElementById('edit-att-section');
+                editSection.innerHTML = '<option value="">None</option>';
+                const branches = selBranch ? [selBranch] : ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+                branches.forEach(b => {
+                    for (let y = 1; y <= 4; y++) {
+                        const sec = `${b}${y}`;
+                        const opt = document.createElement('option');
+                        opt.value = sec;
+                        opt.textContent = `Sec ${sec}`;
+                        editSection.appendChild(opt);
+                    }
+                });
+            };
+            document.getElementById('edit-att-branch').addEventListener('change', (e) => {
+                populateEditSections(e.target.value);
+            });
+
+            document.getElementById('edit-att-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('edit-att-id').value;
+                const payload = {
+                    subject: document.getElementById('edit-att-subject').value.trim(),
+                    date: document.getElementById('edit-att-date').value,
+                    time: document.getElementById('edit-att-time').value,
+                    status: document.getElementById('edit-att-status').value,
+                    branch_code: document.getElementById('edit-att-branch').value.trim(),
+                    section: document.getElementById('edit-att-section').value.trim(),
+                };
+                const saveBtn = document.getElementById('btn-save-edit-att');
+                const origText = saveBtn.innerHTML;
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+                try {
+                    const res = await api.updateAttendance(id, payload);
+                    showToast(res.message || `Attendance record #${id} updated!`, "success");
+                    closeEditAttModal();
+                    loadRecords();
+                } catch (err) {
+                    showToast(`Update failed: ${err.message}`, "error");
+                } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = origText;
+                }
+            });
+
+            // Manual Attendance Modal Controls
+            const manualModal = document.getElementById('manual-att-modal');
+            const openManualModal = () => {
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const dd = String(now.getDate()).padStart(2, '0');
+                const hh = String(now.getHours()).padStart(2, '0');
+                const min = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+
+                document.getElementById('manual-date').value = `${yyyy}-${mm}-${dd}`;
+                document.getElementById('manual-time').value = `${hh}:${min}:${ss}`;
+                if (timetableRes?.current_slot?.class) {
+                    document.getElementById('manual-subject').value = timetableRes.current_slot.class.subject || '';
+                }
+                manualModal.classList.remove('hidden');
+            };
+            const closeManualModal = () => manualModal.classList.add('hidden');
+
+            document.getElementById('btn-manual-att-open').addEventListener('click', openManualModal);
+            document.getElementById('btn-close-manual-att').addEventListener('click', closeManualModal);
+            document.getElementById('btn-cancel-manual-att').addEventListener('click', closeManualModal);
+
+            const manualBranch = document.getElementById('manual-branch');
+            const manualSection = document.getElementById('manual-section');
+            const populateManualSections = () => {
+                manualSection.innerHTML = '<option value="">Auto</option>';
+                const selB = manualBranch.value;
+                const branches = selB ? [selB] : ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+                branches.forEach(b => {
+                    for (let y = 1; y <= 4; y++) {
+                        const sec = `${b}${y}`;
+                        const opt = document.createElement('option');
+                        opt.value = sec;
+                        opt.textContent = `Sec ${sec}`;
+                        manualSection.appendChild(opt);
+                    }
+                });
+            };
+            populateManualSections();
+            manualBranch.addEventListener('change', populateManualSections);
+
+            // Lookup hint on student roll input
+            const manualRollInput = document.getElementById('manual-roll');
+            const manualHint = document.getElementById('manual-student-hint');
+            manualRollInput.addEventListener('input', async () => {
+                const val = manualRollInput.value.trim().toUpperCase();
+                if (val.length >= 3) {
+                    const found = studentsRes.students?.find(s => s.roll_no === val || (s.class_roll_no && s.class_roll_no === val));
+                    if (found) {
+                        manualHint.textContent = `Found: ${found.name} (Sec ${found.section || '?'})`;
+                        if (found.branch_code) manualBranch.value = found.branch_code;
+                        populateManualSections();
+                        if (found.section) manualSection.value = found.section;
+                        return;
+                    }
+                }
+                manualHint.textContent = '';
+            });
+
+            document.getElementById('manual-att-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const roll = manualRollInput.value.trim().toUpperCase();
+                const subject = document.getElementById('manual-subject').value.trim();
+                const date = document.getElementById('manual-date').value;
+                const time = document.getElementById('manual-time').value;
+                const status = document.getElementById('manual-status').value;
+                const branch = manualBranch.value.trim();
+                const section = manualSection.value.trim();
+
+                const submitBtn = document.getElementById('btn-submit-manual-att');
+                const origText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+
+                try {
+                    const res = await api.markManualAttendance({
+                        roll_no: roll,
+                        subject: subject,
+                        date: date,
+                        time: time,
+                        status: status,
+                        branch_code: branch || undefined,
+                        section: section || undefined
+                    });
+                    showToast(res.message || `Attendance marked for ${roll}`, "success");
+                    closeManualModal();
+                    loadRecords();
+                } catch (err) {
+                    showToast(`Error: ${err.message}`, "error");
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origText;
+                }
+            });
 
             document.getElementById('btn-filter').addEventListener('click', loadRecords);
             document.getElementById('filter-student-search').addEventListener('input', loadRecords);
