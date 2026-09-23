@@ -37,6 +37,7 @@ reports/
 backend/load_iert_roster.py
 load_iert_roster.py
 *.apk
+cloudflared.exe
 
 
 # Flutter / Dart

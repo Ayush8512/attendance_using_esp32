@@ -743,9 +743,16 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
       final streamed = await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 503 || response.body.contains('503') || response.body.contains('Tunnel Unavailable')) {
+        throw Exception('Cloud Tunnel / Server is currently offline (503). Please make sure START_SERVER.bat is running on your laptop.');
+      }
 
-      final Map<String, dynamic> data =
-          jsonDecode(response.body) as Map<String, dynamic>;
+      Map<String, dynamic> data = {};
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        throw Exception('Server returned invalid response (${response.statusCode}).');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final yrLabel = AppSettings.getYearLabel(section);
@@ -914,8 +921,17 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         );
       } else {
         if (!mounted) return;
-        final err = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
-        final errMsg = err['detail'] ?? 'Roll No "$rollNo" is not registered or device mismatch.';
+        String errMsg = 'Roll No "$rollNo" is not registered or device mismatch.';
+        try {
+          final err = jsonDecode(response.body) as Map<String, dynamic>? ?? {};
+          errMsg = err['detail'] ?? errMsg;
+        } catch (_) {
+          if (response.statusCode == 503 || response.body.contains('503') || response.body.contains('Tunnel Unavailable')) {
+            errMsg = 'Cloud Tunnel is currently offline (503). Please make sure START_SERVER.bat is running on your laptop.';
+          } else {
+            errMsg = 'Server returned error (${response.statusCode})';
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errMsg),
@@ -1642,13 +1658,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Map<String, dynamic>? _windowStatus;
   String _serverDay = '';
   String _serverTime = '';
+  String _timetableError = '';
 
   // BLE Beacon State
   bool _isManualScanning = false;
   bool _isBeaconDetected = false;
-  int? _beaconRssi;
-  String _beaconName = '';
-  String _bleStatusMessage = 'Waiting for classroom beacon scan...';
 
   @override
   void initState() {
@@ -1716,22 +1730,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_serverUrl.isEmpty) return;
     setState(() => _isLoadingTimetable = true);
     try {
-      final uri = Uri.parse('$_serverUrl/timetable');
+      String url = '$_serverUrl/timetable';
+      final params = <String, String>{};
+      if (_studentSection.isNotEmpty) params['section'] = _studentSection;
+      if (_studentBranch.isNotEmpty) params['branch_code'] = _studentBranch;
+      if (_studentYear.isNotEmpty) params['year'] = _studentYear;
+      if (params.isNotEmpty) {
+        url += '?${Uri(queryParameters: params).query}';
+      }
+      final uri = Uri.parse(url);
       final response = await http.get(uri).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final currentSlot = data['current_slot'] as Map<String, dynamic>?;
-        if (currentSlot != null && mounted) {
+        try {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final currentSlot = data['current_slot'] as Map<String, dynamic>?;
+          if (currentSlot != null && mounted) {
+            setState(() {
+              _timetableError = '';
+              _serverDay = currentSlot['day'] ?? '';
+              _serverTime = currentSlot['time'] ?? '';
+              _currentClass = currentSlot['class'] as Map<String, dynamic>?;
+              _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
+            });
+          }
+        } catch (_) {}
+      } else {
+        if (mounted) {
           setState(() {
-            _serverDay = currentSlot['day'] ?? '';
-            _serverTime = currentSlot['time'] ?? '';
-            _currentClass = currentSlot['class'] as Map<String, dynamic>?;
-            _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
+            _timetableError = 'Server offline (${response.statusCode})';
           });
         }
       }
     } catch (e) {
       debugPrint('[TIMETABLE] Failed to fetch: $e');
+      if (mounted) {
+        setState(() {
+          _timetableError = 'Connection error';
+        });
+      }
     } finally {
       if (mounted) setState(() => _isLoadingTimetable = false);
     }
@@ -1739,23 +1775,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Future<void> _startManualBeaconScan() async {
     if (_isManualScanning) return;
-    setState(() {
-      _isManualScanning = true;
-      _bleStatusMessage = 'Scanning for ESP32 Classroom Beacon...';
-    });
+    setState(() => _isManualScanning = true);
 
     final cleanTargetUUID = kBeaconUUID.replaceAll('-', '').toLowerCase();
     bool found = false;
-    int? bestRssi;
-    String detectedName = '';
-
     StreamSubscription? scanSub;
     try {
-      // Check Bluetooth Adapter
       if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
         setState(() {
           _isBeaconDetected = false;
-          _bleStatusMessage = 'Please turn ON Bluetooth on your phone.';
           _isManualScanning = false;
         });
         return;
@@ -1764,32 +1792,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       scanSub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
           bool matched = false;
-
-          // 1. Service UUID match
           for (final u in r.advertisementData.serviceUuids) {
-            final clean = u.toString().replaceAll('-', '').toLowerCase();
-            if (clean == cleanTargetUUID) {
+            if (u.toString().replaceAll('-', '').toLowerCase() == cleanTargetUUID) {
               matched = true;
               break;
             }
           }
-
-          // 2. iBeacon Manufacturer match
           if (!matched) {
             final mfg = r.advertisementData.manufacturerData;
             if (mfg.containsKey(0x004C) || mfg.containsKey(0x4C00)) {
               final bytes = mfg[0x004C] ?? mfg[0x4C00];
               if (bytes != null && bytes.length >= 20) {
                 final uuidBytes = bytes.sublist(2, 18);
-                final hexStr = uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-                if (hexStr == cleanTargetUUID) {
+                if (uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join() == cleanTargetUUID) {
                   matched = true;
                 }
               }
             }
           }
-
-          // 3. Name match
           if (!matched) {
             final name = r.advertisementData.advName;
             final devName = r.device.platformName;
@@ -1800,27 +1820,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               matched = true;
             }
           }
-
           if (matched) {
             found = true;
-            bestRssi = r.rssi;
-            detectedName = r.advertisementData.advName.isNotEmpty
-                ? r.advertisementData.advName
-                : (r.device.platformName.isNotEmpty ? r.device.platformName : 'SAS_Classroom_Beacon');
             break;
           }
         }
       });
 
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 6),
+        timeout: const Duration(seconds: 4),
         androidUsesFineLocation: true,
       );
-
-      await Future.delayed(const Duration(seconds: 6));
+      await Future.delayed(const Duration(seconds: 4));
     } catch (e) {
       debugPrint('[BLE_SCAN] Error: $e');
-      setState(() => _bleStatusMessage = 'Scan error: $e');
     } finally {
       await FlutterBluePlus.stopScan();
       await scanSub?.cancel();
@@ -1828,13 +1841,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         setState(() {
           _isManualScanning = false;
           _isBeaconDetected = found;
-          _beaconRssi = bestRssi;
-          _beaconName = detectedName;
-          if (found) {
-            _bleStatusMessage = 'ESP32 Beacon detected! Signal: ${bestRssi ?? 0} dBm';
-          } else {
-            _bleStatusMessage = 'Beacon not detected. Ensure ESP32 is ON & Location is active.';
-          }
         });
       }
     }
@@ -1924,14 +1930,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasActiveSubject = _currentClass != null && _currentClass!['subject'] != null;
-    final subjectName = hasActiveSubject ? _currentClass!['subject'] : 'No Class Scheduled';
+    final subjectName = _timetableError.isNotEmpty
+        ? '⚠️ Cloud Server Offline'
+        : (hasActiveSubject ? _currentClass!['subject'] : 'No Class Scheduled');
     final teacherEmail = hasActiveSubject ? _currentClass!['teacher_email'] ?? '' : '';
-    final isWindowOpen = _windowStatus != null && _windowStatus!['is_open'] == true;
-    final windowMessage = _windowStatus != null ? _windowStatus!['message'] ?? '' : '';
+    final isWindowOpen = _timetableError.isEmpty && _windowStatus != null && _windowStatus!['is_open'] == true;
+    final windowMessage = _timetableError.isNotEmpty
+        ? 'Cannot connect to college server. Swipe down to refresh.'
+        : (_windowStatus != null ? _windowStatus!['message'] ?? '' : 'No active attendance window.');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Attendance'),
+        title: GestureDetector(
+          onLongPress: _showSettingsDialog,
+          child: const Text('Smart Attendance'),
+        ),
         centerTitle: true,
         backgroundColor: const Color(0xFF16213E),
         foregroundColor: Colors.white,
@@ -1945,9 +1958,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: _showSettingsDialog,
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Log out?'),
+                  content: const Text('Do you want to switch or log out student profile?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Log out')),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await AppSettings.clearProfile();
+                if (!context.mounted) return;
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const StudentRegisterScreen()),
+                );
+              }
+            },
           ),
         ],
       ),
@@ -2191,109 +2224,107 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // 3. ESP32 Classroom Beacon Live Radar Card
-                Card(
-                  elevation: 2,
-                  color: const Color(0xFF16213E),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.bluetooth_searching, color: Color(0xFFE94560), size: 24),
-                                SizedBox(width: 8),
-                                Text(
-                                  'ESP32 Classroom Beacon',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: _isBeaconDetected ? Colors.green.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: _isBeaconDetected ? Colors.greenAccent : Colors.redAccent,
-                                ),
-                              ),
-                              child: Text(
-                                _isBeaconDetected ? 'IN CLASS' : 'NOT DETECTED',
-                                style: TextStyle(
-                                  color: _isBeaconDetected ? Colors.greenAccent : Colors.redAccent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _bleStatusMessage,
-                          style: TextStyle(
-                            color: Colors.grey.shade300,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (_isBeaconDetected && _beaconRssi != null) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(Icons.signal_cellular_alt, color: Colors.greenAccent, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                'RSSI: $_beaconRssi dBm  •  $_beaconName',
-                                style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isManualScanning ? null : _startManualBeaconScan,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white54),
-                                ),
-                                icon: _isManualScanning
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.radar, size: 18),
-                                label: Text(_isManualScanning ? 'Scanning...' : 'Scan for ESP32 Beacon'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                // Location / Classroom Presence Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _isBeaconDetected ? Colors.green.shade50 : Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _isBeaconDetected ? Colors.green.shade300 : Colors.amber.shade400,
                     ),
                   ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _isBeaconDetected ? Icons.check_circle : Icons.bluetooth_searching,
+                        color: _isBeaconDetected ? Colors.green.shade700 : Colors.amber.shade800,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _isBeaconDetected
+                              ? 'Present in Classroom (Verified)'
+                              : (_isManualScanning
+                                  ? 'Checking Classroom Bluetooth...'
+                                  : 'Not in Classroom (Turn ON Bluetooth)'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: _isBeaconDetected ? Colors.green.shade900 : Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                      if (_isManualScanning)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else if (!_isBeaconDetected)
+                        TextButton(
+                          onPressed: _startManualBeaconScan,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text('Re-check', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                // 4. Primary Action: Face Scan Button
+                // Primary Action: Face Scan Button
                 SizedBox(
                   height: 54,
                   child: FilledButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
+                      if (!_isBeaconDetected) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Checking classroom presence... Please make sure Bluetooth is ON.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        await _startManualBeaconScan();
+                      }
+                      if (!_isBeaconDetected) {
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.location_off, color: Colors.red, size: 28),
+                                SizedBox(width: 10),
+                                Text('Not in Classroom!', style: TextStyle(fontSize: 18)),
+                              ],
+                            ),
+                            content: const Text(
+                              'You must be physically present inside the classroom with Bluetooth turned ON to mark attendance.\n\nPlease step inside the lecture hall and try again.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _startManualBeaconScan();
+                                },
+                                child: const Text('Scan Again'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (!context.mounted) return;
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -2302,19 +2333,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       );
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFE94560),
+                      backgroundColor: _isBeaconDetected ? const Color(0xFFE94560) : Colors.blueGrey,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     icon: const Icon(Icons.camera_alt, size: 24),
-                    label: const Text(
-                      'Mark Attendance (Face Scan)',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    label: Text(
+                      _isBeaconDetected ? 'Mark Attendance (Face Scan)' : 'Check Presence & Mark Attendance',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
-                // 5. Analytics & 75% Tracker Button
+                const SizedBox(height: 12),
+
+                // Analytics & 75% Tracker Button
                 SizedBox(
                   height: 50,
                   child: OutlinedButton.icon(
@@ -2346,24 +2379,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-
-                // Simulation helper button
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await showClassroomNotification();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Simulated classroom notification triggered! Tap it to open Face Scan.'),
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.notifications_active, size: 18),
-                  label: const Text('Simulate Classroom Entry Notification', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
@@ -2505,8 +2520,25 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
             const Duration(seconds: 60),
           );
       final response = await http.Response.fromStream(streamed);
-      final Map<String, dynamic> data =
-          jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 503 || response.body.contains('503') || response.body.contains('Tunnel Unavailable')) {
+        _setStatus(
+          '❌ Cloud Tunnel is Offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.',
+          Colors.red.shade800,
+        );
+        return;
+      }
+
+      Map<String, dynamic> data = {};
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        _setStatus(
+          '❌ Server error (${response.statusCode}):\n${response.body.length > 120 ? response.body.substring(0, 120) : response.body}',
+          Colors.red.shade800,
+        );
+        return;
+      }
 
       debugPrint('[VERIFY API] Status ${response.statusCode}: ${response.body}');
 
@@ -2759,18 +2791,31 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
           });
         }
       } else {
-        final err = jsonDecode(res.body)['detail'] ?? 'Failed to load analytics (${res.statusCode})';
+        String err = 'Failed to load analytics (${res.statusCode})';
+        try {
+          err = jsonDecode(res.body)['detail'] ?? err;
+        } catch (_) {
+          if (res.statusCode == 503 || res.body.contains('503') || res.body.contains('Tunnel Unavailable')) {
+            err = 'Cloud Tunnel is currently offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.';
+          } else {
+            err = 'Server returned error (${res.statusCode})';
+          }
+        }
         if (mounted) {
           setState(() {
-            _errorMessage = err.toString();
+            _errorMessage = err;
             _isLoading = false;
           });
         }
       }
     } catch (e) {
       if (mounted) {
+        String msg = 'Connection error: $e';
+        if (e is FormatException && (e.message.contains('503') || e.source.toString().contains('503'))) {
+          msg = 'Cloud Tunnel is currently offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.';
+        }
         setState(() {
-          _errorMessage = 'Connection error: $e';
+          _errorMessage = msg;
           _isLoading = false;
         });
       }

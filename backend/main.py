@@ -64,7 +64,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, "attendance.db")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
-FACE_MATCH_TOLERANCE = 0.55  # 0.55 = balanced 1-to-1 anti-proxy tolerance (strict & reliable)
+FACE_MATCH_TOLERANCE = 0.44  # 0.44 = strict anti-proxy tolerance (blocks re-photographed screens & lookalikes)
 
 # ---------------------------------------------------------------------------
 # SMTP / Email configuration  (override via environment variables or .env)
@@ -175,17 +175,43 @@ async def get_class_info_from_db(
     try:
         db = await get_db()
         try:
+            current_minute = dt.minute
+            # current time in minutes since midnight for range comparison
+            current_total = hour * 60 + current_minute
+
+            # Helper SQL: a class is "active" if:
+            #   - It starts at current hour (hour = ?) OR
+            #   - It has an end_hour that covers current time (hour < ? AND end_hour >= ?)
+            # We calculate this with: start_total <= current_total <= end_total
+            # For simplicity in SQLite: 
+            #   start_total = hour*60 + start_minute
+            #   end_total = COALESCE(end_hour, hour)*60 + COALESCE(end_minute, start_minute + allowed_window_minutes)
+
+            def active_where():
+                return """
+                    (hour * 60 + COALESCE(start_minute, 0)) <= ?
+                    AND (
+                        CASE
+                            WHEN end_hour IS NOT NULL AND end_minute IS NOT NULL
+                            THEN end_hour * 60 + end_minute
+                            ELSE hour * 60 + COALESCE(start_minute, 0) + COALESCE(allowed_window_minutes, 15)
+                        END
+                    ) > ?
+                """
+
             # 1. Try to match specific section
             if section:
                 cur = await db.execute(
-                    """
+                    f"""
                     SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email, 
                            COALESCE(section, '') as section, COALESCE(branch_code, '') as branch_code, 
                            COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
                     FROM timetable
-                    WHERE day = ? AND hour = ? AND section = ?
+                    WHERE day = ? AND {active_where()} AND section = ?
+                    ORDER BY hour DESC, start_minute DESC
+                    LIMIT 1
                     """,
-                    (day_name, hour, section.strip().upper()),
+                    (day_name, current_total, current_total, section.strip().upper()),
                 )
                 row = await cur.fetchone()
                 if row:
@@ -194,31 +220,33 @@ async def get_class_info_from_db(
             # 2. Try to match branch + year
             if branch_code and year:
                 cur = await db.execute(
-                    """
+                    f"""
                     SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email,
                            COALESCE(section, '') as section, COALESCE(branch_code, '') as branch_code, 
                            COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
                     FROM timetable
-                    WHERE day = ? AND hour = ? AND branch_code = ? AND year = ?
+                    WHERE day = ? AND {active_where()} AND branch_code = ? AND year = ?
+                    ORDER BY hour DESC, start_minute DESC
+                    LIMIT 1
                     """,
-                    (day_name, hour, branch_code.strip().upper(), year),
+                    (day_name, current_total, current_total, branch_code.strip().upper(), year),
                 )
                 row = await cur.fetchone()
                 if row:
                     return dict(row)
 
-            # 3. Fallback to general slot for this day & hour
+            # 3. Fallback to general slot for this day & time range
             cursor = await db.execute(
-                """
+                f"""
                 SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email,
                        COALESCE(section, '') as section, COALESCE(branch_code, '') as branch_code, 
                        COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
                 FROM timetable
-                WHERE day = ? AND hour = ?
-                ORDER BY CASE WHEN section != '' THEN 0 ELSE 1 END
+                WHERE day = ? AND {active_where()}
+                ORDER BY CASE WHEN section != '' THEN 0 ELSE 1 END, hour DESC, start_minute DESC
                 LIMIT 1
                 """,
-                (day_name, hour),
+                (day_name, current_total, current_total),
             )
             row = await cursor.fetchone()
             if row:
@@ -655,6 +683,120 @@ async def extract_face_encoding(file: UploadFile, is_registration: bool = False)
         raise ValueError(
             f"Multiple faces detected in photo ({len(face_locations)} faces). Please ensure only one person is in the frame."
         )
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # 🔒 ANTI-SPOOFING: Multi-Layer Liveness Detection (Verification only)
+    # Detects photo/screen attacks:
+    # 1. Screen bezels, window edges, monitor frames (Hough Transform)
+    # 2. 2D FFT Moiré / LCD pixel grid frequency peaks
+    # 3. Texture sharpness & variance anomalies
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if not is_registration:
+        try:
+            top, right, bottom, left = face_locations[0]
+            import cv2
+
+            gray_full = cv2.cvtColor(working_image, cv2.COLOR_RGB2GRAY)
+
+            # ── Check 1: Screen Bezel / Border Detection (Hough Transform) ──
+            # When someone aims a phone at a laptop/monitor/tablet, the frame contains
+            # multiple long horizontal and vertical straight lines (screen edges, window borders).
+            # Real selfies have natural organic curves (head, shoulders, neck) with almost zero lines.
+            edges = cv2.Canny(gray_full, 50, 150)
+            lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=70, minLineLength=50, maxLineGap=10)
+            screen_lines = 0
+            if lines is not None:
+                for line in lines:
+                    pts = line[0] if len(line.shape) > 1 and line.shape[0] == 1 else line
+                    x1, y1, x2, y2 = pts[0], pts[1], pts[2], pts[3]
+                    # Skip lines entirely inside the face boundary
+                    if left < x1 < right and top < y1 < bottom and left < x2 < right and top < y2 < bottom:
+                        continue
+                    angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi)
+                    if angle < 6 or angle > 174 or (84 < angle < 96):
+                        screen_lines += 1
+
+            # ── Check 2: 2D FFT Moiré / Subpixel Grid Analysis ──
+            face_region = working_image[top:bottom, left:right]
+            high_freq_ratio = 0.0
+            laplacian_var = 0.0
+            texture_uniformity = 10.0
+            mean_saturation = 50.0
+
+            if face_region.size > 0:
+                face_gray = cv2.cvtColor(face_region, cv2.COLOR_RGB2GRAY)
+                face_resized = cv2.resize(face_gray, (128, 128))
+
+                # FFT 2D high-frequency energy ratio
+                f = np.fft.fft2(face_resized)
+                fshift = np.fft.fftshift(f)
+                h, w = face_resized.shape
+                cy, cx = h // 2, w // 2
+                radius = min(h, w) // 5
+                y, x = np.ogrid[:h, :w]
+                mask = (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2
+                low_energy = np.sum(np.abs(fshift)[mask])
+                total_energy = np.sum(np.abs(fshift))
+                high_freq_ratio = float((total_energy - low_energy) / (total_energy + 1e-6))
+
+                # Laplacian variance
+                face_small = cv2.resize(face_gray, (64, 64))
+                laplacian_var = float(cv2.Laplacian(face_small, cv2.CV_64F).var())
+
+                # Texture uniformity across 4x4 blocks
+                h_s, w_s = face_small.shape
+                block_vars = []
+                bh, bw = h_s // 4, w_s // 4
+                for row in range(4):
+                    for col in range(4):
+                        block = face_small[row * bh:(row + 1) * bh, col * bw:(col + 1) * bw]
+                        block_vars.append(float(np.std(block)))
+                texture_uniformity = float(np.std(block_vars))
+
+                # Saturation
+                face_hsv = cv2.cvtColor(face_region, cv2.COLOR_RGB2HSV)
+                mean_saturation = float(np.mean(face_hsv[:, :, 1]))
+
+            logger.info(
+                "[ANTI-SPOOF] screen_lines=%d, high_freq=%.4f, laplacian=%.2f, uniformity=%.2f",
+                screen_lines, high_freq_ratio, laplacian_var, texture_uniformity
+            )
+
+            # ── Trigger anti-spoof rejection ──
+            if screen_lines >= 6:
+                logger.warning("[ANTI-SPOOF BLOCKED] Screen borders detected: %d lines", screen_lines)
+                raise ValueError(
+                    f"⚠️ Liveness Check Failed! Screen / monitor borders detected in frame ({screen_lines} straight edges). "
+                    f"Showing photos on laptop/phone screens is strictly prohibited. Please show your live face directly."
+                )
+
+            if high_freq_ratio > 0.44:
+                logger.warning("[ANTI-SPOOF BLOCKED] High Moiré / LCD pixel grid detected: %.4f", high_freq_ratio)
+                raise ValueError(
+                    "⚠️ Liveness Check Failed! Digital screen pixel lattice / Moiré pattern detected. "
+                    "Showing photos on screens is not allowed. Please use your real face."
+                )
+
+            # Combined secondary flags
+            spoof_flags = 0
+            if laplacian_var > 700:
+                spoof_flags += 1
+            if texture_uniformity < 3.0:
+                spoof_flags += 1
+            if mean_saturation > 155:
+                spoof_flags += 1
+
+            if spoof_flags >= 2:
+                logger.warning("[ANTI-SPOOF BLOCKED] Secondary texture flags: %d", spoof_flags)
+                raise ValueError(
+                    "⚠️ Liveness Check Failed! Artificial photo surface detected. "
+                    "Please stand in front of the camera with your real face."
+                )
+
+        except ValueError:
+            raise
+        except Exception as spoof_exc:
+            logger.warning("[ANTI-SPOOF] Check error (non-blocking): %s", spoof_exc)
 
     # Use 3 jitters during registration for a robust reference vector; 1 jitter for fast verification
     jitters = 3 if is_registration else 1
@@ -1371,6 +1513,12 @@ async def verify_attendance(
                 matched_year = student["year"] or 1
                 match_distance = distance
                 match_confidence = max(0.0, round((1.0 - (distance / FACE_MATCH_TOLERANCE)) * 100.0, 2))
+
+                if match_confidence < 35.0:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Face match confidence too low ({match_confidence:.1f}% < 35%). Live photo does not match {student['name']} with high fidelity. Showing photos on screens or printouts is strictly blocked.",
+                    )
             else:
                 raise HTTPException(
                     status_code=404,
@@ -1406,6 +1554,12 @@ async def verify_attendance(
                 student = best_match
                 match_distance = best_distance
                 match_confidence = max(0.0, round((1.0 - (best_distance / FACE_MATCH_TOLERANCE)) * 100.0, 2))
+
+                if match_confidence < 35.0:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Face match confidence too low ({match_confidence:.1f}% < 35%). Live photo does not match registered biometric records with high fidelity. Screen/photo attendance blocked.",
+                    )
                 
                 registered_dev = (student["device_id"] or "").strip()
                 incoming_dev = (device_id or "").strip()
