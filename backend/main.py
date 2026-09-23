@@ -235,7 +235,7 @@ async def get_class_info_from_db(
                 if row:
                     return dict(row)
 
-            # 3. Fallback to general slot for this day & time range
+            # 3. Fallback to general slot (all sections / common class) for this day & time range
             cursor = await db.execute(
                 f"""
                 SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email,
@@ -243,7 +243,9 @@ async def get_class_info_from_db(
                        COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
                 FROM timetable
                 WHERE day = ? AND {active_where()}
-                ORDER BY CASE WHEN section != '' THEN 0 ELSE 1 END, hour DESC, start_minute DESC
+                  AND (section IS NULL OR section = '' OR section = 'All Sections')
+                  AND (branch_code IS NULL OR branch_code = '' OR branch_code = 'All Branches')
+                ORDER BY hour DESC, start_minute DESC
                 LIMIT 1
                 """,
                 (day_name, current_total, current_total),

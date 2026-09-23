@@ -57,6 +57,12 @@ const Map<String, String> kBranchShortNames = {
   'G': 'CE',
 };
 
+Map<String, String> get kDefaultHttpHeaders => {
+  'Bypass-Tunnel-Reminder': 'true',
+  'Accept': 'application/json',
+  'User-Agent': 'SmartAttendanceApp/1.0',
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Global State & Navigation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +145,11 @@ class AppSettings {
 
   static Future<String> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(keyServerUrl) ?? kDefaultApiBaseUrl;
+    final url = prefs.getString(keyServerUrl);
+    if (url == null || url.trim().isEmpty || url.contains('localhost') || url.contains('127.0.0.1')) {
+      return kDefaultApiBaseUrl;
+    }
+    return url.trim();
   }
 
   static Future<void> saveProfile({
@@ -619,7 +629,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     setState(() => _isSearchingRoster = true);
     try {
       final uri = Uri.parse('$serverUrl/roster/lookup/${Uri.encodeComponent(query.trim())}');
-      final res = await http.get(uri).timeout(const Duration(seconds: 6));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 6));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (data['found'] == true && data['student'] != null) {
@@ -719,6 +729,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       final deviceId = await AppSettings.getDeviceId();
       final uri = Uri.parse('$serverUrl/register');
       final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(kDefaultHttpHeaders)
         ..fields['name'] = name
         ..fields['roll_no'] = rollNo
         ..fields['device_id'] = deviceId;
@@ -867,6 +878,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       final uri = Uri.parse('$serverUrl/students/login');
       final response = await http.post(
         uri,
+        headers: kDefaultHttpHeaders,
         body: {
           'roll_no': rollNo,
           'device_id': deviceId,
@@ -1412,7 +1424,7 @@ class _BrowseRosterSheetState extends State<_BrowseRosterSheet> {
     try {
       final query = _searchController.text.trim();
       final uri = Uri.parse('${widget.serverUrl}/roster/students?section=$_section&search=${Uri.encodeComponent(query)}&limit=100');
-      final res = await http.get(uri).timeout(const Duration(seconds: 10));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {
@@ -1656,9 +1668,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _isLoadingTimetable = false;
   Map<String, dynamic>? _currentClass;
   Map<String, dynamic>? _windowStatus;
+  List<Map<String, dynamic>> _timetableList = [];
+  bool _showAllDays = false;
   String _serverDay = '';
   String _serverTime = '';
   String _timetableError = '';
+
+  List<Map<String, dynamic>> get _todayClasses {
+    if (_timetableList.isEmpty) return [];
+    final currentDay = _serverDay.isNotEmpty
+        ? _serverDay
+        : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][DateTime.now().weekday - 1];
+    return _timetableList.where((item) {
+      final day = item['day']?.toString() ?? '';
+      return day.toLowerCase() == currentDay.toLowerCase();
+    }).toList();
+  }
 
   // BLE Beacon State
   bool _isManualScanning = false;
@@ -1739,21 +1764,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         url += '?${Uri(queryParameters: params).query}';
       }
       final uri = Uri.parse(url);
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
           final currentSlot = data['current_slot'] as Map<String, dynamic>?;
-          if (currentSlot != null && mounted) {
+          final rawList = data['timetable'] as List<dynamic>?;
+          List<Map<String, dynamic>> parsedList = [];
+          if (rawList != null) {
+            parsedList = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          }
+          if (mounted) {
             setState(() {
               _timetableError = '';
-              _serverDay = currentSlot['day'] ?? '';
-              _serverTime = currentSlot['time'] ?? '';
-              _currentClass = currentSlot['class'] as Map<String, dynamic>?;
-              _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
+              _timetableList = parsedList;
+              if (currentSlot != null) {
+                _serverDay = currentSlot['day'] ?? '';
+                _serverTime = currentSlot['time'] ?? '';
+                _currentClass = currentSlot['class'] as Map<String, dynamic>?;
+                _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
+              }
             });
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[TIMETABLE] Parse error: $e');
+          if (mounted) {
+            setState(() {
+              _timetableError = 'Invalid server response';
+            });
+          }
+        }
       } else {
         if (mounted) {
           setState(() {
@@ -1868,6 +1908,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 hintText: 'https://ayush-smart-backend.loca.lt',
                 border: OutlineInputBorder(),
                 isDense: true,
+              ),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  controller.text = kDefaultApiBaseUrl;
+                },
+                icon: const Icon(Icons.cloud_sync, size: 16),
+                label: const Text('Reset to Cloud URL (ayush-smart-backend)', style: TextStyle(fontSize: 11)),
               ),
             ),
             const SizedBox(height: 18),
@@ -2222,6 +2273,218 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                   ),
                 ),
+                if (_timetableError.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.cloud_off, color: Colors.red.shade700, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Server Offline / Connection Issue',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red.shade900),
+                              ),
+                              Text(
+                                'Connecting to: $_serverUrl\nRun START_SERVER.bat on your PC.',
+                                style: TextStyle(fontSize: 10, color: Colors.red.shade800),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _showSettingsDialog,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                          ),
+                          child: const Text('Change URL', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+
+                // 2b. Scheduled Classes List Card (Today / Full Timetable)
+                Card(
+                  elevation: 2,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.grey.shade300, width: 1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today, color: Color(0xFF0F3460), size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _showAllDays
+                                      ? 'Weekly Schedule'
+                                      : "Today's Schedule (${_serverDay.isNotEmpty ? _serverDay : 'Today'})",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: () => setState(() => _showAllDays = !_showAllDays),
+                              icon: Icon(_showAllDays ? Icons.today : Icons.view_week, size: 14),
+                              label: Text(
+                                _showAllDays ? 'Show Today' : 'All Days',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        () {
+                          final listToDisplay = _showAllDays ? _timetableList : _todayClasses;
+                          if (listToDisplay.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Center(
+                                child: Text(
+                                  _isLoadingTimetable
+                                      ? 'Loading schedule from server...'
+                                      : (_showAllDays ? 'No timetable entries found.' : 'No classes scheduled for today.\nTap "All Days" to view the full schedule.'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                              ),
+                            );
+                          }
+                          return Column(
+                            children: listToDisplay.map((item) {
+                              final subj = item['subject']?.toString() ?? 'Class';
+                              final isLive = _currentClass != null &&
+                                  _currentClass!['subject'] == subj &&
+                                  _currentClass!['hour'] == item['hour'];
+                              final timeStr = item['time_label'] ?? '${item['hour']}:00';
+                              final teacher = item['teacher_email']?.toString() ?? '';
+                              final sec = item['section']?.toString() ?? '';
+                              final dayStr = item['day']?.toString() ?? '';
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isLive ? Colors.green.shade50 : const Color(0xFFF8F9FA),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isLive ? Colors.green.shade400 : Colors.grey.shade200,
+                                    width: isLive ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isLive ? Colors.green.shade700 : const Color(0xFF16213E),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        timeStr,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  subj,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: isLive ? Colors.green.shade900 : Colors.black87,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (_showAllDays && dayStr.isNotEmpty) ...[
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey.shade200,
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    dayStr,
+                                                    style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          if (teacher.isNotEmpty || (sec.isNotEmpty && sec != 'All Sections'))
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 2),
+                                              child: Text(
+                                                [
+                                                  if (sec.isNotEmpty && sec != 'All Sections') 'Sec: $sec',
+                                                  if (teacher.isNotEmpty) teacher,
+                                                ].join(' • '),
+                                                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (isLive)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade600,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          '● LIVE',
+                                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        }(),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 14),
 
                 // Location / Classroom Presence Badge
@@ -2510,6 +2773,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       final deviceId = await AppSettings.getDeviceId();
       final uri = Uri.parse('$_serverUrl/verify');
       final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll(kDefaultHttpHeaders)
         ..files.add(await http.MultipartFile.fromPath('photo', path));
       if (_studentRoll.isNotEmpty) {
         request.fields['roll_no'] = _studentRoll;
@@ -2781,7 +3045,7 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
 
     try {
       final uri = Uri.parse('${widget.serverUrl}/students/${widget.rollNo}/analytics');
-      final res = await http.get(uri).timeout(const Duration(seconds: 12));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 12));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {
