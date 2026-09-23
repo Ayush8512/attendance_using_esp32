@@ -1494,13 +1494,14 @@ async def verify_attendance(
                     )
 
             known_encoding = json.loads(student["face_encoding"])
-            is_match, distance, _ = match_encoding(known_encoding, unknown_encoding)
+            is_match, distance, confidence = match_encoding(known_encoding, unknown_encoding)
             logger.info(
-                "1-to-1 Verification: roll=%s, name=%s, distance=%.4f (threshold=%.2f)",
+                "1-to-1 Verification: roll=%s, name=%s, distance=%.4f (threshold=%.2f, confidence=%.1f%%)",
                 clean_roll,
                 student["name"],
                 distance,
                 FACE_MATCH_TOLERANCE,
+                confidence,
             )
             
             if is_match:
