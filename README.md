@@ -149,3 +149,61 @@ The output APK will be saved at `build/app/outputs/flutter-apk/app-release.apk` 
 
 ## 🔒 Security & Data Privacy
 - [`.gitignore`](file:///d:/RFID/.gitignore) strictly prevents raw roster documents, private Excel sheets, database files, and `.env` credentials from being committed to version control.
+
+
+## 📂 Enterprise Directory Structure (Modular Architecture)
+
+The system has been heavily refactored from prototype monoliths into a clean, scalable, and enterprise-grade modular architecture.
+
+```text
+/ (Root)
+├── START_SERVER.bat                   ▶️ 1-click startup script for backend & web dashboard
+├── attendance.db                      🗄️ SQLite Database (Students, Attendance, Timetable)
+│
+├── hardware/                          📟 PILLAR 1: PHYSICAL SECURITY / IOT
+│   └── esp32_classroom_beacon/
+│       └── esp32_classroom_beacon.ino 📡 C++ Code: ESP32 BLE iBeacon broadcasting class UUID
+│
+├── backend/                           🧠 PILLAR 2: SERVER & AI ENGINE (FastAPI)
+│   ├── main.py                        ✅ API Entry point
+│   ├── config.py & database.py        ⚙️ Core Settings & DB Connection
+│   ├── schemas.py & utils.py          🛡️ Pydantic Validators & Helper functions
+│   │
+│   ├── routers/                       🔀 API Endpoints
+│   │   ├── attendance.py              # Face match verification & live attendance logs
+│   │   ├── students.py                # Student registration & deletion management
+│   │   ├── timetable.py               # Dynamic strict-window class scheduling
+│   │   ├── roster.py                  # Student metrics & college directory
+│   │   └── admin.py                   # Secure admin overrides & locks
+│   │
+│   └── services/                      ⚡ Core Business Logic
+│       ├── face_engine.py             👤 Ultra-fast Vectorized AI Face Index (O(1) Numpy matching)
+│       ├── report_service.py          📊 Automated Excel generation & SMTP Emailing
+│       └── timetable_service.py       ⏰ 10-minute strict attendance window calculations
+│
+├── mobile_app/lib/                    📱 PILLAR 3: STUDENT APP (Flutter)
+│   ├── main.dart                      ✅ Flutter App Entry Point
+│   │
+│   ├── utils/
+│   │   └── constants.dart             🔗 BLE UUIDs & Global Configurations
+│   │
+│   ├── services/
+│   │   └── background_service.dart    📡 Background BLE signal scanner & Push Notifications
+│   │
+│   └── screens/                       📱 UI Pages
+│       ├── face_scan_screen.dart      # Camera capture & biometric submission UI
+│       ├── attendance_screen.dart     # Dashboard showing timetable & personal record
+│       ├── register_screen.dart       # First-time biometric enrollment & roster lookup
+│       └── analytics_screen.dart      # 75% shortage graphs & metrics
+│
+└── frontend/                          🌐 PILLAR 4: TEACHER/ADMIN DASHBOARD
+    ├── index.html                     🏠 Teacher Web Portal
+    ├── css/                           🎨 Styling sheets
+    │
+    └── js/pages/                      📜 Modular Dashboard Scripts
+        ├── classroom.js               # Live tracking & active class metrics
+        ├── timetable.js               # UI to schedule dynamic class windows
+        ├── attendance.js              # View & download daily present/absent lists
+        ├── dashboard.js               # Overall college attendance charts
+        └── students.js & register.js  # Roster management & enrollment tools
+```

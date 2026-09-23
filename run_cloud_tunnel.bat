@@ -2,12 +2,13 @@
 title Smart Attendance - Cloud Tunnel
 color 0B
 echo Starting cloud tunnel for Smart Attendance...
+echo.
 
 :loop
-echo Connecting to https://ayush-smart-backend.loca.lt ...
-cmd /c "npx --yes localtunnel --port 8000 --subdomain ayush-smart-backend"
+echo [%date% %time%] Connecting to https://ayush-smart-backend.loca.lt ...
+npx --yes localtunnel --port 8000 --subdomain ayush-smart-backend
 echo.
-echo Tunnel disconnected or interrupted!
-echo Reconnecting in 3 seconds...
-timeout /t 3 /nobreak >nul
+echo [%date% %time%] Tunnel disconnected or interrupted!
+echo Reconnecting in 5 seconds...
+timeout /t 5 /nobreak >nul
 goto loop
