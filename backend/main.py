@@ -765,27 +765,23 @@ async def extract_face_encoding(file: UploadFile, is_registration: bool = False)
             )
 
             # ── Trigger anti-spoof rejection ──
-            if screen_lines >= 6:
-                logger.warning("[ANTI-SPOOF BLOCKED] Screen borders detected: %d lines", screen_lines)
-                raise ValueError(
-                    f"⚠️ Liveness Check Failed! Screen / monitor borders detected in frame ({screen_lines} straight edges). "
-                    f"Showing photos on laptop/phone screens is strictly prohibited. Please show your live face directly."
-                )
-
-            if high_freq_ratio > 0.44:
+            # 1. Primary Moiré / LCD pixel grid check (analyzes face region only, immune to background objects)
+            if high_freq_ratio > 0.47:
                 logger.warning("[ANTI-SPOOF BLOCKED] High Moiré / LCD pixel grid detected: %.4f", high_freq_ratio)
                 raise ValueError(
                     "⚠️ Liveness Check Failed! Digital screen pixel lattice / Moiré pattern detected. "
                     "Showing photos on screens is not allowed. Please use your real face."
                 )
 
-            # Combined secondary flags
+            # 2. Combined secondary surface flags (requires at least 2 simultaneous anomalies)
             spoof_flags = 0
-            if laplacian_var > 700:
+            if laplacian_var > 1400:
                 spoof_flags += 1
-            if texture_uniformity < 3.0:
+            if texture_uniformity < 2.5:
                 spoof_flags += 1
-            if mean_saturation > 155:
+            if mean_saturation > 165:
+                spoof_flags += 1
+            if screen_lines > 60 and high_freq_ratio > 0.42:
                 spoof_flags += 1
 
             if spoof_flags >= 2:
