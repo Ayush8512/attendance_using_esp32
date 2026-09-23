@@ -1510,17 +1510,11 @@ async def verify_attendance(
                 matched_branch = student["branch_code"] or ""
                 matched_year = student["year"] or 1
                 match_distance = distance
-                match_confidence = max(0.0, round((1.0 - (distance / FACE_MATCH_TOLERANCE)) * 100.0, 2))
-
-                if match_confidence < 35.0:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Face match confidence too low ({match_confidence:.1f}% < 35%). Live photo does not match {student['name']} with high fidelity. Showing photos on screens or printouts is strictly blocked.",
-                    )
+                match_confidence = confidence
             else:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Face mismatch! (Distance: {distance:.4f}). This does not appear to be {student['name']}. Proxy attendance blocked.",
+                    detail=f"Face mismatch! (Distance: {distance:.4f} > {FACE_MATCH_TOLERANCE}). This does not appear to be {student['name']}. Proxy attendance blocked.",
                 )
         else:
             # ── 1:N Global Search Verification ──
@@ -1551,13 +1545,7 @@ async def verify_attendance(
                 matched_year = best_match["year"] or 1
                 student = best_match
                 match_distance = best_distance
-                match_confidence = max(0.0, round((1.0 - (best_distance / FACE_MATCH_TOLERANCE)) * 100.0, 2))
-
-                if match_confidence < 35.0:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Face match confidence too low ({match_confidence:.1f}% < 35%). Live photo does not match registered biometric records with high fidelity. Screen/photo attendance blocked.",
-                    )
+                match_confidence = compute_match_confidence(best_distance, FACE_MATCH_TOLERANCE)
                 
                 registered_dev = (student["device_id"] or "").strip()
                 incoming_dev = (device_id or "").strip()
