@@ -150,7 +150,6 @@ The output APK will be saved at `build/app/outputs/flutter-apk/app-release.apk` 
 ## 🔒 Security & Data Privacy
 - [`.gitignore`](file:///d:/RFID/.gitignore) strictly prevents raw roster documents, private Excel sheets, database files, and `.env` credentials from being committed to version control.
 
-
 ## 📂 Enterprise Directory Structure (Modular Architecture)
 
 The system has been heavily refactored from prototype monoliths into a clean, scalable, and enterprise-grade modular architecture.
@@ -159,6 +158,7 @@ The system has been heavily refactored from prototype monoliths into a clean, sc
 / (Root)
 ├── START_SERVER.bat                   ▶️ 1-click startup script for backend & web dashboard
 ├── attendance.db                      🗄️ SQLite Database (Students, Attendance, Timetable)
+├── README.md                          📖 Project documentation
 │
 ├── hardware/                          📟 PILLAR 1: PHYSICAL SECURITY / IOT
 │   └── esp32_classroom_beacon/
