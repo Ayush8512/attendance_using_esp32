@@ -141,6 +141,15 @@ async def init_db() -> None:
                         info["teacher_email"],
                     ),
                 )
+        
+        # --- Add Database Indexes for O(1) Data Retrieval ---
+        # Without these, SQLite will do full table scans (O(N)), slowing down the app drastically after 1 month of attendance.
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_roll_no ON attendance(roll_no)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_section ON attendance(section, branch_code)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_students_device_id ON students(device_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_roster_search ON college_roster(branch_code, section, year)")
+
         await db.commit()
     finally:
         await db.close()
