@@ -1,10 +1,9 @@
-﻿services:
+services:
   - type: web
-    name: smart-attendance-backend
-    runtime: docker
-    dockerfilePath: Dockerfile
+    name: iert-smart-attendance
+    env: docker
+    region: singapore
     plan: free
-    region: oregon
     envVars:
-      - key: PORT
-        value: 8000
+      - key: SUPABASE_URL
+        sync: false
