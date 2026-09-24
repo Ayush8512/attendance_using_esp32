@@ -3,7 +3,7 @@ const API_BASE_URL = window.location.port === "8000" ? "" : "http://localhost:80
 const API_KEY = "";
 
 async function fetchWithHandler(url, options = {}) {
-    options.headers = {
+    options.credentials = "include"; options.headers = {
         ...options.headers,
         "X-API-Key": API_KEY
     };

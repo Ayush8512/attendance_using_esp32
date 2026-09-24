@@ -17,7 +17,7 @@ async def login(data: LoginData, response: Response):
             value=API_KEY,
             httponly=True,
             samesite="lax",
-            max_age=86400 * 30 # 30 days
+            max_age=86400 * 30, path="/" # 30 days
         )
         return {"status": "success", "message": "Logged in successfully"}
     
