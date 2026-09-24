@@ -240,8 +240,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 503 || response.body.contains('503') || response.body.contains('Tunnel Unavailable')) {
-        _setStatus('❌ Cloud Tunnel is Offline (503).
-Please ensure START_SERVER.bat is running on your laptop.', Colors.red.shade800);
+        _setStatus('❌ Cloud Tunnel is Offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.', Colors.red.shade800);
         return;
       }
 
@@ -259,28 +258,18 @@ Please ensure START_SERVER.bat is running on your laptop.', Colors.red.shade800)
         final rollNo = data['roll_no'] ?? '';
         final time = data['time'] ?? '';
         final confidence = data['confidence'] ?? 0;
-        final confStr = confidence > 0 ? '
-Match Confidence: $confidence%' : '';
+        final confStr = confidence > 0 ? '\nMatch Confidence: $confidence%' : '';
         if (status == 'already_marked') {
-          _setStatus('✅ Already Marked Today!
-
-Student: $name
-Roll No: $rollNo$confStr', Colors.indigo.shade800);
+          _setStatus('✅ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo$confStr', Colors.indigo.shade800);
         } else {
-          _setStatus('✅ Attendance Marked Successfully!
-
-Student: $name
-Roll No: $rollNo
-Time: $time$confStr', Colors.green.shade800);
+          _setStatus('✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo\nTime: $time$confStr', Colors.green.shade800);
         }
       } else if (response.statusCode == 403) {
         final detail = data['detail'] ?? 'Time limit exceeded.';
-        _setStatus('🚫 Rejection (Strict Window):
-$detail', Colors.red.shade800);
+        _setStatus('🚫 Rejection (Strict Window):\n$detail', Colors.red.shade800);
       } else if (response.statusCode == 404) {
         final detail = data['detail'] ?? 'Face not recognized.';
-        _setStatus('❌ Face Not Matched:
-$detail', Colors.red.shade800);
+        _setStatus('❌ Face Not Matched:\n$detail', Colors.red.shade800);
       } else {
         final detail = data['detail'] ?? 'Verification failed';
         _setStatus('❌ $detail', Colors.red.shade800);
