@@ -19,7 +19,7 @@ export default {
                         <i class="fas fa-plus-circle"></i> + Mark Attendance
                     </button>
                     <button id="btn-end-class-modal" class="bg-accent hover:bg-blue-900 border border-blue-500/50 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold shadow-md">
-                        <i class="fas fa-paper-plane text-yellow-400"></i> End Class & Email Sheet
+                        <i class="fas fa-paper-plane text-yellow-400"></i> Cumulative Report
                     </button>
                     <button id="btn-export" class="bg-cardbg border border-gray-600 hover:border-green-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm">
                         <i class="fas fa-file-csv text-green-400"></i> Export CSV
@@ -96,7 +96,7 @@ export default {
                 </div>
             </div>
 
-            <!-- End Class & Email Sheet Modal -->
+            <!-- Cumulative Report Modal -->
             <div id="end-class-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
                 <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
                     <div class="flex items-center justify-between border-b border-gray-700 pb-3">

@@ -86,3 +86,37 @@ async def reset_student_device(roll_no: str):
         await db.close()
     return {"status": "success", "message": f"Device binding for student '{clean_roll}' reset. Next login will bind to their new phone."}
 
+
+from pydantic import BaseModel
+class ReportRequest(BaseModel):
+    subject: str
+    start_date: str
+    end_date: str
+    branch: str = ""
+    section: str = ""
+    action: str = "download"
+
+@router.post('/admin/reports/generate')
+async def generate_report_api(req: ReportRequest):
+    """Generates a Cumulative Attendance Excel Report."""
+    try:
+        filepath, filename = await generate_attendance_excel(
+            subject=req.subject,
+            start_date=req.start_date,
+            end_date=req.end_date,
+            branch=req.branch if req.branch else None,
+            section=req.section if req.section else None
+        )
+        if req.action == "email":
+            # Just grab any first teacher's email from TIMETABLE for simplicity, or send to a default
+            # In a real app, you'd pass the teacher email in the request
+            from config import SENDER_EMAIL
+            send_email_with_attachment(SENDER_EMAIL, f"Cumulative Report: {req.subject}", "Please find the requested attendance report attached.", filepath, filename)
+            return {"status": "success", "message": "Report emailed successfully."}
+        
+        # Return download link
+        return {"status": "success", "download_url": f"/reports/{filename}"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
