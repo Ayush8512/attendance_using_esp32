@@ -1,6 +1,6 @@
 const API_BASE_URL = window.location.port === "8000" ? "" : "http://localhost:8000";
 
-const API_KEY = "iert_sas_secure_key_2026";
+const API_KEY = "";
 
 async function fetchWithHandler(url, options = {}) {
     options.headers = {
@@ -15,7 +15,7 @@ async function fetchWithHandler(url, options = {}) {
                 const parsed = JSON.parse(errorText);
                 if (parsed.detail) errorText = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
             } catch (_) {}
-            throw new Error(errorText || `API Error: ${response.status}`);
+            if (response.status === 401 || response.status === 403) { window.location.href = "/login.html"; } throw new Error(errorText || `API Error: ${response.status}`);
         }
         return await response.json();
     } catch (error) {

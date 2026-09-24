@@ -50,7 +50,15 @@ export function renderNavbar(currentPath) {
                 </span>
             </div>
         </div>
+    
+    <div class="p-4 mt-auto border-t border-gray-700">
+        <button onclick="window.handleLogout()" class="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-white hover:bg-red-600 rounded-lg transition-colors">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="font-medium">Logout</span>
+        </button>
+    </div>
     </aside>
+
     `;
 
     container.innerHTML = navHtml;

@@ -53,3 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', router);
     router();
 });
+
+
+window.handleLogout = async () => {
+    if(confirm("Are you sure you want to log out?")) {
+        await fetch('/api/auth/logout', {method: 'POST'});
+        window.location.href = '/login.html';
+    }
+};
