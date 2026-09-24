@@ -210,7 +210,7 @@ async def lookup_roster_student(roll_no: str):
                 b_meta = BRANCH_METADATA.get(b_code, {"name": stu_row["branch_name"] or "Engineering"})
                 return {
                     "status": "success",
-                    "found": true,
+                    "found": True,
                     "student": {
                         "name": stu_row["name"],
                         "primary_roll_no": stu_row["roll_no"],
@@ -220,7 +220,7 @@ async def lookup_roster_student(roll_no: str):
                         "section": stu_row["section"] or "",
                         "year": stu_row["year"] or 1,
                         "semester": "",
-                        "is_registered": true,
+                        "is_registered": True,
                         "is_locked": bool(stu_row["is_locked"]),
                         "device_bound": bool(stu_row["device_id"]),
                     },
