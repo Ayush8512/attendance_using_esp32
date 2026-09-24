@@ -308,143 +308,7 @@ async def list_students(
     ]
     return {"status": "success", "count": len(students), "students": students}
 
-@router.get('/students/{roll_no:path}')
-async def get_student_profile(roll_no: str):
-    """Fetch student profile by roll number to restore local session after app reinstall."""
-    clean_roll = roll_no.strip().upper()
-    db = await get_db()
-    try:
-        cursor = await db.execute(
-            """
-            SELECT roll_no, name, branch_code, branch_name, section, year, class_roll_no, is_locked, device_id 
-            FROM students WHERE roll_no = ?
-            """,
-            (clean_roll,),
-        )
-        student = await cursor.fetchone()
-        if not student:
-            # Fallback check college_roster
-            roster_cur = await db.execute(
-                "SELECT primary_roll_no as roll_no, name, branch_code, branch_name, section, year, class_roll_no FROM college_roster WHERE primary_roll_no = ? OR class_roll_no = ? LIMIT 1",
-                (clean_roll, clean_roll),
-            )
-            r_stu = await roster_cur.fetchone()
-            if not r_stu:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"No registered student found with Roll Number '{clean_roll}'.",
-                )
-            b_code = r_stu["branch_code"]
-            return {
-                "status": "success",
-                "roll_no": r_stu["roll_no"],
-                "name": r_stu["name"],
-                "branch_code": b_code,
-                "branch_name": r_stu["branch_name"] or BRANCH_METADATA.get(b_code, {}).get("name", ""),
-                "section": r_stu["section"] or "",
-                "year": r_stu["year"] or 1,
-                "class_roll_no": r_stu["class_roll_no"] or "",
-                "is_locked": False,
-                "device_id": "",
-            }
-
-        b_code = student["branch_code"] or ""
-        return {
-            "status": "success",
-            "roll_no": student["roll_no"],
-            "name": student["name"],
-            "branch_code": b_code,
-            "branch_name": student["branch_name"] or BRANCH_METADATA.get(b_code, {}).get("name", ""),
-            "section": student["section"] or "",
-            "year": student["year"] or (int(student["section"][1]) if student["section"] and len(student["section"]) >= 2 and student["section"][1].isdigit() else 1),
-            "class_roll_no": student["class_roll_no"] or "",
-            "is_locked": bool(student["is_locked"]) if student["is_locked"] is not None else True,
-            "device_id": student["device_id"] or "",
-        }
-    finally:
-        await db.close()
-
-@router.put('/students/{roll_no:path}')
-async def update_student_profile(roll_no: str, payload: StudentProfileUpdate):
-    """Update student profile (name, branch, section, year, class roll) and sync attendance records."""
-    clean_roll = roll_no.strip().upper()
-    db = await get_db()
-    try:
-        cur = await db.execute("SELECT roll_no, name FROM students WHERE roll_no = ?", (clean_roll,))
-        student = await cur.fetchone()
-        if not student:
-            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
-
-        updates = []
-        params = []
-        if payload.name is not None and payload.name.strip():
-            updates.append("name = ?")
-            params.append(payload.name.strip())
-        if payload.branch_code is not None and payload.branch_code.strip():
-            b_code = payload.branch_code.strip().upper()
-            b_name = BRANCH_METADATA.get(b_code, {}).get("name", "")
-            updates.append("branch_code = ?")
-            params.append(b_code)
-            updates.append("branch_name = ?")
-            params.append(b_name)
-        if payload.section is not None:
-            sec_val = payload.section.strip().upper()
-            updates.append("section = ?")
-            params.append(sec_val)
-        if payload.year is not None:
-            updates.append("year = ?")
-            params.append(payload.year)
-        if payload.class_roll_no is not None:
-            updates.append("class_roll_no = ?")
-            params.append(payload.class_roll_no.strip())
-
-        if updates:
-            updates.append("updated_at = ?")
-            params.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            params.append(clean_roll)
-            await db.execute(f"UPDATE students SET {', '.join(updates)} WHERE roll_no = ?", params)
-
-            # Sync existing attendance records with updated branch, section, year
-            att_updates = []
-            att_params = []
-            if payload.branch_code is not None and payload.branch_code.strip():
-                att_updates.append("branch_code = ?")
-                att_params.append(payload.branch_code.strip().upper())
-            if payload.section is not None:
-                att_updates.append("section = ?")
-                att_params.append(payload.section.strip().upper())
-            if payload.year is not None:
-                att_updates.append("year = ?")
-                att_params.append(payload.year)
-
-            if att_updates:
-                att_params.append(clean_roll)
-                await db.execute(f"UPDATE attendance SET {', '.join(att_updates)} WHERE roll_no = ?", att_params)
-
-            await db.commit()
-
-        return {"status": "success", "message": f"Student '{clean_roll}' profile updated successfully."}
-    finally:
-        await db.close()
-
-@router.delete('/students/{roll_no:path}')
-async def delete_student(roll_no: str):
-    """Delete a registered student and their attendance records."""
-    clean_roll = roll_no.strip().upper()
-    db = await get_db()
-    try:
-        cur = await db.execute("DELETE FROM students WHERE roll_no = ?", (clean_roll,))
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
-        
-        await db.execute("DELETE FROM attendance WHERE roll_no = ?", (clean_roll,))
-        await db.commit()
-        global_face_index.is_loaded = False
-    finally:
-        await db.close()
-    return {"status": "success", "message": f"Student '{clean_roll}' deleted successfully."}
-
-@router.get('/students/{roll_no:path}/analytics')
+@router.get('/students/{roll_no}/analytics')
 async def get_student_attendance_analytics(roll_no: str):
     """
     Calculate personal attendance metrics, subject-wise percentages,
@@ -549,4 +413,142 @@ async def get_student_attendance_analytics(roll_no: str):
         }
     finally:
         await db.close()
+
+@router.get('/students/{roll_no}')
+async def get_student_profile(roll_no: str):
+    """Fetch student profile by roll number to restore local session after app reinstall."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """
+            SELECT roll_no, name, branch_code, branch_name, section, year, class_roll_no, is_locked, device_id 
+            FROM students WHERE roll_no = ?
+            """,
+            (clean_roll,),
+        )
+        student = await cursor.fetchone()
+        if not student:
+            # Fallback check college_roster
+            roster_cur = await db.execute(
+                "SELECT primary_roll_no as roll_no, name, branch_code, branch_name, section, year, class_roll_no FROM college_roster WHERE primary_roll_no = ? OR class_roll_no = ? LIMIT 1",
+                (clean_roll, clean_roll),
+            )
+            r_stu = await roster_cur.fetchone()
+            if not r_stu:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No registered student found with Roll Number '{clean_roll}'.",
+                )
+            b_code = r_stu["branch_code"]
+            return {
+                "status": "success",
+                "roll_no": r_stu["roll_no"],
+                "name": r_stu["name"],
+                "branch_code": b_code,
+                "branch_name": r_stu["branch_name"] or BRANCH_METADATA.get(b_code, {}).get("name", ""),
+                "section": r_stu["section"] or "",
+                "year": r_stu["year"] or 1,
+                "class_roll_no": r_stu["class_roll_no"] or "",
+                "is_locked": False,
+                "device_id": "",
+            }
+
+        b_code = student["branch_code"] or ""
+        return {
+            "status": "success",
+            "roll_no": student["roll_no"],
+            "name": student["name"],
+            "branch_code": b_code,
+            "branch_name": student["branch_name"] or BRANCH_METADATA.get(b_code, {}).get("name", ""),
+            "section": student["section"] or "",
+            "year": student["year"] or (int(student["section"][1]) if student["section"] and len(student["section"]) >= 2 and student["section"][1].isdigit() else 1),
+            "class_roll_no": student["class_roll_no"] or "",
+            "is_locked": bool(student["is_locked"]) if student["is_locked"] is not None else True,
+            "device_id": student["device_id"] or "",
+        }
+    finally:
+        await db.close()
+
+@router.put('/students/{roll_no}')
+async def update_student_profile(roll_no: str, payload: StudentProfileUpdate):
+    """Update student profile (name, branch, section, year, class roll) and sync attendance records."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT roll_no, name FROM students WHERE roll_no = ?", (clean_roll,))
+        student = await cur.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
+
+        updates = []
+        params = []
+        if payload.name is not None and payload.name.strip():
+            updates.append("name = ?")
+            params.append(payload.name.strip())
+        if payload.branch_code is not None and payload.branch_code.strip():
+            b_code = payload.branch_code.strip().upper()
+            b_name = BRANCH_METADATA.get(b_code, {}).get("name", "")
+            updates.append("branch_code = ?")
+            params.append(b_code)
+            updates.append("branch_name = ?")
+            params.append(b_name)
+        if payload.section is not None:
+            sec_val = payload.section.strip().upper()
+            updates.append("section = ?")
+            params.append(sec_val)
+        if payload.year is not None:
+            updates.append("year = ?")
+            params.append(payload.year)
+        if payload.class_roll_no is not None:
+            updates.append("class_roll_no = ?")
+            params.append(payload.class_roll_no.strip())
+
+        if updates:
+            updates.append("updated_at = ?")
+            params.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            params.append(clean_roll)
+            await db.execute(f"UPDATE students SET {', '.join(updates)} WHERE roll_no = ?", params)
+
+            # Sync existing attendance records with updated branch, section, year
+            att_updates = []
+            att_params = []
+            if payload.branch_code is not None and payload.branch_code.strip():
+                att_updates.append("branch_code = ?")
+                att_params.append(payload.branch_code.strip().upper())
+            if payload.section is not None:
+                att_updates.append("section = ?")
+                att_params.append(payload.section.strip().upper())
+            if payload.year is not None:
+                att_updates.append("year = ?")
+                att_params.append(payload.year)
+
+            if att_updates:
+                att_params.append(clean_roll)
+                await db.execute(f"UPDATE attendance SET {', '.join(att_updates)} WHERE roll_no = ?", att_params)
+
+            await db.commit()
+
+        return {"status": "success", "message": f"Student '{clean_roll}' profile updated successfully."}
+    finally:
+        await db.close()
+
+@router.delete('/students/{roll_no}')
+async def delete_student(roll_no: str):
+    """Delete a registered student and their attendance records."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cur = await db.execute("DELETE FROM students WHERE roll_no = ?", (clean_roll,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
+        
+        await db.execute("DELETE FROM attendance WHERE roll_no = ?", (clean_roll,))
+        await db.commit()
+        global_face_index.is_loaded = False
+    finally:
+        await db.close()
+    return {"status": "success", "message": f"Student '{clean_roll}' deleted successfully."}
+
+
 
