@@ -1,0 +1,13 @@
+name: Ping Render Server
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Check
+        run: curl -f https://attendance-using-esp32-1.onrender.com/health || echo "Ping failed"
