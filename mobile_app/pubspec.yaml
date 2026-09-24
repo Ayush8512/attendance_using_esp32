@@ -38,6 +38,7 @@ dependencies:
   # Material Design icons (included with Flutter SDK)
   cupertino_icons: ^1.0.8
   camera: ^0.12.1
+  google_mlkit_face_detection: ^0.15.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
