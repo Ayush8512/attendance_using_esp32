@@ -62,6 +62,7 @@ Map<String, String> get kDefaultHttpHeaders => {
   'Bypass-Tunnel-Reminder': 'true',
   'Accept': 'application/json',
   'User-Agent': 'SmartAttendanceApp/1.0',
+  'X-API-Key': 'iert_sas_secure_key_2026',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
