@@ -1,4 +1,4 @@
-const API_BASE_URL = window.location.port === "8000" ? "" : "http://localhost:8000";
+const API_BASE_URL = "";
 
 const API_KEY = "";
 
