@@ -8,6 +8,8 @@ except ImportError:
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_PATH = os.path.join(BASE_DIR, "attendance.db")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
