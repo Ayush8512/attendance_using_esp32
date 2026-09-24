@@ -13,6 +13,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
+
+# Restrict CMake to 1 core to prevent "Out of memory" errors on Render when compiling dlib
+ENV CMAKE_BUILD_PARALLEL_LEVEL=1
+
+RUN pip install --no-cache-dir dlib==19.24.2 || true
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
