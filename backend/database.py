@@ -13,10 +13,10 @@ class AsyncpgCursor:
         self.rowcount = rowcount
         
     async def fetchall(self):
-        return self._records
+        return [dict(r) for r in self._records]
         
     async def fetchone(self):
-        return self._records[0] if self._records else None
+        return [dict(r) for r in self._records][0] if self._records else None
 
 class AsyncpgDBWrapper:
     def __init__(self, con):
@@ -77,7 +77,7 @@ async def init_pool():
         url = SUPABASE_URL
         if "?" not in url:
             url += "?sslmode=require"
-        _pool = await asyncpg.create_pool(url, min_size=1, max_size=10)
+        _pool = await asyncpg.create_pool(url, min_size=1, max_size=10, command_timeout=10, statement_cache_size=0)
     return _pool
 
 async def get_db():

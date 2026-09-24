@@ -15,7 +15,7 @@ async function fetchWithHandler(url, options = {}) {
                 const parsed = JSON.parse(errorText);
                 if (parsed.detail) errorText = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
             } catch (_) {}
-            if (response.status === 401 || response.status === 403) { window.location.href = "/login.html"; } throw new Error(errorText || `API Error: ${response.status}`);
+            if (response.status === 401 || response.status === 403) { window.location.href = "/login.html"; await new Promise(r => setTimeout(r, 5000)); } throw new Error(errorText || `API Error: ${response.status}`);
         }
         return await response.json();
     } catch (error) {
