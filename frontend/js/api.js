@@ -1,6 +1,12 @@
 const API_BASE_URL = window.location.port === "8000" ? "" : "http://localhost:8000";
 
+const API_KEY = "iert_sas_secure_key_2026";
+
 async function fetchWithHandler(url, options = {}) {
+    options.headers = {
+        ...options.headers,
+        "X-API-Key": API_KEY
+    };
     try {
         const response = await fetch(`${API_BASE_URL}${url}`, options);
         if (!response.ok) {

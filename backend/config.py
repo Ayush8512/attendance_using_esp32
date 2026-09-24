@@ -56,3 +56,6 @@ TIMETABLE: Dict[Tuple[str, int], Dict[str, Any]] = {
     ("Friday", 11): {"subject": "Digital Logic",       "teacher_email": "rao@college.edu", "start_minute": 0, "allowed_window_minutes": 10},
     ("Friday", 14): {"subject": "Project Work",        "teacher_email": "singh@college.edu", "start_minute": 0, "allowed_window_minutes": 10},
 }
+
+# Application API Security Key
+API_KEY = os.getenv("API_KEY", "iert_sas_secure_key_2026")

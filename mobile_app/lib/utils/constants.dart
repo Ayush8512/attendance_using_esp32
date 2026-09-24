@@ -300,3 +300,6 @@ void _navigateToFaceScanScreen() {
 //  Background BLE Service
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
+const String kApiKey = 'iert_sas_secure_key_2026';
