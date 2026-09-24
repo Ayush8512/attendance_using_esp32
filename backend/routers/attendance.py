@@ -57,11 +57,20 @@ async def verify_attendance(
     )
 
     if not class_info:
-        sec_msg = f" for Section {student_section}" if student_section else ""
-        raise HTTPException(
-            status_code=403,
-            detail=f"Time limit exceeded. No scheduled class found{sec_msg} for current time ({now.strftime('%A %I:%M %p')}).",
-        )
+        # No timetable configured — use a fallback "Open Session" so face scan always works
+        logger.info("No timetable entry found for current time. Using fallback open session.")
+        class_info = {
+            "subject": "General Attendance",
+            "hour": now.hour,
+            "start_minute": 0,
+            "end_hour": None,
+            "end_minute": None,
+            "allowed_window_minutes": 1440,  # 24 hours — always open
+            "section": student_section or "",
+            "branch_code": student_branch or "",
+            "branch_name": "",
+            "year": student_year or 0,
+        }
 
     is_allowed, time_err, window_end_str = check_attendance_window(class_info, now)
     if not is_allowed:
