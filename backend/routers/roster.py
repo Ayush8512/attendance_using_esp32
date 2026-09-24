@@ -258,10 +258,10 @@ async def get_roster_stats():
     db = await get_db()
     try:
         tot_roster_cur = await db.execute("SELECT COUNT(*) FROM college_roster")
-        total_roster = (await tot_roster_cur.fetchone())[0]
+        total_roster = list((await tot_roster_cur.fetchone()).values())[0]
 
         tot_reg_cur = await db.execute("SELECT COUNT(*) FROM students")
-        total_registered = (await tot_reg_cur.fetchone())[0]
+        total_registered = list((await tot_reg_cur.fetchone()).values())[0]
 
         branch_cur = await db.execute(
             """

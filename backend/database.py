@@ -155,6 +155,27 @@ async def init_db() -> None:
         
         await db.execute(
             """
+            CREATE TABLE IF NOT EXISTS timetable (
+                id SERIAL PRIMARY KEY,
+                day TEXT NOT NULL,
+                hour INTEGER NOT NULL,
+                start_minute INTEGER NOT NULL,
+                end_hour INTEGER,
+                end_minute INTEGER,
+                allowed_window_minutes INTEGER DEFAULT 15,
+                subject TEXT NOT NULL,
+                teacher_email TEXT NOT NULL,
+                section TEXT DEFAULT '',
+                branch_code TEXT DEFAULT '',
+                branch_name TEXT DEFAULT '',
+                year INTEGER DEFAULT 1,
+                UNIQUE(day, hour, section)
+            )
+            """
+        )
+
+        await db.execute(
+            """
             CREATE TABLE IF NOT EXISTS system_settings (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
