@@ -14,11 +14,9 @@ const routes = {
 };
 
 function router() {
-    let hash = window.location.hash;
-    if (!hash) {
-        hash = '#dashboard';
-        window.location.hash = hash;
-        return;
+    let hash = window.location.hash || '#dashboard';
+    if (!window.location.hash) {
+        history.replaceState(null, '', '#dashboard');
     }
 
     const [path, query] = hash.split('?');
@@ -29,6 +27,7 @@ function router() {
     const page = routes[path] || routes['#dashboard'];
     
     const appDiv = document.getElementById('app');
+    if (!appDiv) return;
     
     if (window.currentIntervals) {
         window.currentIntervals.forEach(clearInterval);
@@ -37,7 +36,7 @@ function router() {
 
     appDiv.innerHTML = '<div class="flex items-center justify-center h-full"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-highlight"></div></div>';
     
-    setTimeout(async () => {
+    (async () => {
         try {
             await page.render(appDiv, query);
             renderNavbar(path);
@@ -45,7 +44,7 @@ function router() {
             console.error(error);
             appDiv.innerHTML = `<div class="text-red-500 p-4 bg-red-500 bg-opacity-20 rounded-lg">Error loading page: ${error.message}</div>`;
         }
-    }, 50);
+    })();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -21,6 +21,7 @@ timeout /t 4 /nobreak >nul
 
 echo [3/3] Starting Tunnel (ayush-smart-backend.loca.lt)...
 start "Localtunnel" cmd /k "npx localtunnel --port 8000 --subdomain ayush-smart-backend"
+timeout /t 3 /nobreak >nul
 
 start http://localhost:8000
 
