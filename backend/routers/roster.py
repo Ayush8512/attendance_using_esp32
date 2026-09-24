@@ -5,9 +5,6 @@ import json
 from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
-from services.face_engine import extract_face_encoding, match_encoding, compute_match_confidence
-from services.timetable_service import get_class_info_from_db, check_attendance_window
-from services.report_service import generate_attendance_excel, send_email_with_attachment
 import logging
 logger = logging.getLogger('attendance')
 

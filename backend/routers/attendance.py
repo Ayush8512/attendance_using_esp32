@@ -410,7 +410,7 @@ async def add_manual_attendance(payload: AttendanceManualCreate):
 
         await db.execute(
             """
-            INSERT INTO attendance (roll_no, date, time, status, subject, section, branch_code, year)
+            INSERT OR IGNORE INTO attendance (roll_no, date, time, status, subject, section, branch_code, year)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (clean_roll, rec_date, rec_time, status_val, subj_val, sec, b_code, yr)
@@ -422,4 +422,21 @@ async def add_manual_attendance(payload: AttendanceManualCreate):
         }
     finally:
         await db.close()
+
+async def save_attendance_background(roll_no: str, today: str, time_str: str, subject: str, section: str, branch: str, year: int):
+    """Background task to safely save attendance to DB without blocking the API response."""
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT OR IGNORE INTO attendance (roll_no, date, time, subject, status, section, branch_code, year)
+               VALUES (?, ?, ?, ?, 'Present', ?, ?, ?)""",
+            (roll_no, today, time_str, subject, section, branch, year)
+        )
+        await db.commit()
+        logger.info("Attendance saved in background: roll=%s, date=%s, subject=%s", roll_no, today, subject)
+    except Exception as e:
+        logger.error("Background attendance save failed: %s", e)
+    finally:
+        await db.close()
+
 

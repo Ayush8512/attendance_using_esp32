@@ -111,7 +111,7 @@ async def generate_report_api(req: ReportRequest):
             # Just grab any first teacher's email from TIMETABLE for simplicity, or send to a default
             # In a real app, you'd pass the teacher email in the request
             from config import SENDER_EMAIL
-            send_email_with_attachment(SENDER_EMAIL, f"Cumulative Report: {req.subject}", "Please find the requested attendance report attached.", filepath, filename)
+            send_email_with_attachment(SENDER_EMAIL, f"Cumulative Report: {req.subject}", "Please find the requested attendance report attached.", filepath)
             return {"status": "success", "message": "Report emailed successfully."}
         
         # Return download link

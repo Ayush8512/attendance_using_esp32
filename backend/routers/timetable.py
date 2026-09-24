@@ -6,9 +6,7 @@ from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE, TIMETABLE, ATTENDANCE_WINDOW_MINUTES
 from utils import get_year_label
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
-from services.face_engine import extract_face_encoding, match_encoding, compute_match_confidence
 from services.timetable_service import get_class_info_from_db, check_attendance_window
-from services.report_service import generate_attendance_excel, send_email_with_attachment
 import logging
 logger = logging.getLogger('attendance')
 
@@ -31,7 +29,7 @@ async def view_timetable(
         if not year and clean_sec[1].isdigit():
             year = int(clean_sec[1])
 
-    now = datetime.now()
+    now = get_ist_now()
     current_class = await get_class_info_from_db(now, section=clean_sec, branch_code=clean_branch, year=year)
 
     window_status = None

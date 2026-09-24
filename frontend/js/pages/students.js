@@ -399,13 +399,8 @@ export default {
                     const roll = btn.getAttribute('data-roll');
                     try {
                         btn.disabled = true;
-                        const res = await fetch(`/admin/students/${encodeURIComponent(roll)}/reset-device`, { method: 'POST' });
-                        if (!res.ok) {
-                            const errData = await res.json().catch(() => ({}));
-                            throw new Error(errData.detail || errData.message || 'Server returned ' + res.status);
-                        }
-                        const data = await res.json();
-                        showToast(data.message || `Device binding reset for ${roll}`, "success");
+                        const res = await api.resetStudentDevice(roll);
+                        showToast(res.message || `Device binding reset for ${roll}`, "success");
                         loadCurrentView();
                     } catch (err) {
                         showToast(`Failed to reset device: ${err.message}`, "error");

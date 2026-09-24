@@ -430,17 +430,19 @@ async def update_student_profile(roll_no: str, payload: StudentProfileUpdate):
 @router.delete('/students/{roll_no:path}')
 async def delete_student(roll_no: str):
     """Delete a registered student and their attendance records."""
+    clean_roll = roll_no.strip().upper()
     db = await get_db()
     try:
-        cur = await db.execute("DELETE FROM students WHERE roll_no = ?", (roll_no,))
-        await db.execute("DELETE FROM attendance WHERE roll_no = ?", (roll_no,))
+        cur = await db.execute("DELETE FROM students WHERE roll_no = ?", (clean_roll,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Student with roll number '{clean_roll}' not found.")
+        
+        await db.execute("DELETE FROM attendance WHERE roll_no = ?", (clean_roll,))
         await db.commit()
         global_face_index.is_loaded = False
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail=f"Student with roll number '{roll_no}' not found.")
     finally:
         await db.close()
-    return {"status": "success", "message": f"Student '{roll_no}' deleted successfully."}
+    return {"status": "success", "message": f"Student '{clean_roll}' deleted successfully."}
 
 @router.get('/students/{roll_no:path}/analytics')
 async def get_student_attendance_analytics(roll_no: str):

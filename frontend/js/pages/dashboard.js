@@ -23,9 +23,9 @@ export default {
                 api.getRosterStats()
             ]);
 
-            if (rosterStatsRes.status === 'fulfilled' && rosterStatsRes.value?.total_students) {
-                stats.totalEnrolled = rosterStatsRes.value.total_students;
-                stats.registeredBiometrics = rosterStatsRes.value.registered_count || 0;
+            if (rosterStatsRes.status === 'fulfilled' && rosterStatsRes.value?.total_roster) {
+                stats.totalEnrolled = rosterStatsRes.value.total_roster;
+                stats.registeredBiometrics = rosterStatsRes.value.total_registered || 0;
             } else if (studentsRes.status === 'fulfilled') {
                 const studentsList = studentsRes.value.students || studentsRes.value || [];
                 stats.registeredBiometrics = Array.isArray(studentsList) ? studentsList.length : 0;
