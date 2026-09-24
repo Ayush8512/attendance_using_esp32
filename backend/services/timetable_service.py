@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from utils import get_ist_now
 from typing import Optional, Dict, Any, Tuple
 
 from database import get_db
@@ -9,7 +10,7 @@ logger = logging.getLogger("attendance.timetable_service")
 
 def get_class_info(dt: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
     if dt is None:
-        dt = datetime.now()
+        dt = get_ist_now()
     day_name = dt.strftime("%A")
     hour = dt.hour
     return TIMETABLE.get((day_name, hour))
@@ -21,7 +22,7 @@ async def get_class_info_from_db(
     year: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     if dt is None:
-        dt = datetime.now()
+        dt = get_ist_now()
     day_name = dt.strftime("%A")
     hour = dt.hour
 
@@ -113,7 +114,7 @@ async def get_class_info_from_db(
 
 def check_attendance_window(class_info: Dict[str, Any], dt: Optional[datetime] = None) -> Tuple[bool, str, str]:
     if dt is None:
-        dt = datetime.now()
+        dt = get_ist_now()
 
     start_hour = class_info.get("hour", dt.hour)
     start_minute = class_info.get("start_minute", 0)

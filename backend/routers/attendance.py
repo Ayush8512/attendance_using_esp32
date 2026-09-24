@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, Form, HTTPException, UploadFile, File, BackgroundTasks
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime
+from datetime import date
+from utils import get_ist_now
 import json
 from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
@@ -16,9 +18,10 @@ router = APIRouter(tags=['attendance'])
 
 @router.post('/verify')
 async def verify_attendance(
+    background_tasks: BackgroundTasks,
     photo: UploadFile = File(..., description="Selfie photo for live verification"),
     roll_no: str | None = Form(None, description="Optional Roll Number for faster 1-to-1 matching"),
-    device_id: str | None = Form(None, description="Optional Device UUID for hardware binding verification"),
+    device_id: str | None = Form(None, description="Optional Device UUID for hardware binding verification")
 ):
     """
     Verify a student's identity and mark attendance.
@@ -26,7 +29,7 @@ async def verify_attendance(
     Enforces hardware device lock (Anti-Proxy) and strict time windows.
     """
     # ── 1. Strict Time Window Check (Server Time) ──
-    now = datetime.now()
+    now = get_ist_now()
     clean_roll = roll_no.strip().upper() if roll_no and roll_no.strip() else None
     student_section = None
     student_branch = None
@@ -224,11 +227,11 @@ async def verify_attendance(
 
         # --- Mark attendance ---
         now_time_str = now.strftime("%H:%M:%S")
-        await db.execute(
-            "INSERT INTO attendance (roll_no, date, time, subject, status, section, branch_code, year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (matched_roll_no, today, now_time_str, current_subject, "Present", matched_section, matched_branch, matched_year),
+        # Enqueue the write operation to background queue
+        background_tasks.add_task(
+            save_attendance_background,
+            matched_roll_no, today, now_time_str, current_subject, matched_section, matched_branch, matched_year
         )
-        await db.commit()
     finally:
         await db.close()
 
@@ -391,8 +394,8 @@ async def add_manual_attendance(payload: AttendanceManualCreate):
             b_code = payload.branch_code or stu["branch_code"] or ""
             yr = stu["year"] or 1
 
-        rec_date = payload.date.strip() if payload.date else datetime.now().strftime("%Y-%m-%d")
-        rec_time = payload.time.strip() if payload.time else datetime.now().strftime("%H:%M:%S")
+        rec_date = payload.date.strip() if payload.date else get_ist_now().strftime("%Y-%m-%d")
+        rec_time = payload.time.strip() if payload.time else get_ist_now().strftime("%H:%M:%S")
         status_val = payload.status.strip() if payload.status else "Present"
         subj_val = payload.subject.strip()
 
@@ -425,7 +428,7 @@ async def end_class(
     2. Generate an Excel report with Year, Branch, Section, Class Roll, and AKTU Roll.
     3. Email the report to the teacher if configured.
     """
-    now = datetime.now()
+    now = get_ist_now()
     today = date.today().isoformat()
 
     # --- Resolve class info from timetable or form overrides ---
