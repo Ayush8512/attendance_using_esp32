@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title Smart Attendance - Master Server Launcher
 color 0A
 
@@ -13,25 +14,20 @@ echo [0/3] Checking dependencies...
 where uvicorn >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] uvicorn not found in PATH!
-    echo Make sure Python and uvicorn are installed:
-    echo   pip install uvicorn fastapi
     pause
     exit /b 1
 )
 
-where npx >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] npx not found in PATH!
-    echo Make sure Node.js is installed from https://nodejs.org
-    pause
-    exit /b 1
+REM --- Get Local IP ---
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr "IPv4"') do (
+    set "ip=%%a"
+    set "ip=!ip:~1!"
+    goto :ip_found
 )
-
-echo    All dependencies found. OK!
-echo.
+:ip_found
 
 REM --- Step 1: Kill any old process on port 8000 ---
-echo [1/4] Cleaning up old processes on port 8000...
+echo [1/3] Cleaning up old processes on port 8000...
 netstat -ano | findstr ":8000.*LISTENING" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo    Found existing process on port 8000. Killing it...
@@ -39,42 +35,33 @@ if %ERRORLEVEL% equ 0 (
         taskkill /PID %%a /F >nul 2>&1
     )
     timeout /t 2 /nobreak >nul
-    echo    Done.
-) else (
-    echo    Port 8000 is free. OK!
 )
 echo.
 
 REM --- Step 2: Start Backend ---
-echo [2/4] Starting Backend Server (FastAPI on Port 8000)...
+echo [2/3] Starting Backend Server (FastAPI on Port 8000)...
 start "Attendance Backend" cmd /k "cd /d d:\RFID\backend && echo ===== UVICORN BACKEND SERVER ===== && echo. && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
-timeout /t 5 /nobreak >nul
+timeout /t 4 /nobreak >nul
 
-REM --- Step 3: Start Cloud Tunnel ---
-echo [3/4] Starting Cloud Tunnel (https://ayush-smart-backend.loca.lt)...
-start "Attendance Cloud Tunnel" cmd /k "cd /d d:\RFID && echo ===== CLOUD TUNNEL ===== && echo. && npx --yes localtunnel --port 8000 --subdomain ayush-smart-backend"
-
-timeout /t 5 /nobreak >nul
-
-REM --- Step 4: Open Dashboard ---
-echo [4/4] Opening Admin Dashboard in Browser...
+REM --- Step 3: Open Dashboard ---
+echo [3/3] Opening Admin Dashboard in Browser...
 start "" "http://localhost:8000"
 
 echo.
 echo ========================================================
-echo   ALL SERVICES STARTED!
-echo   Local Dashboard:  http://localhost:8000
-echo   Cloud URL:        https://ayush-smart-backend.loca.lt
+echo   ALL SERVICES STARTED SUCCESSFULLY!
 echo ========================================================
 echo.
-echo IMPORTANT: Keep the two black windows open:
-echo   - "Attendance Backend"
-echo   - "Attendance Cloud Tunnel"
+echo TO CONNECT YOUR MOBILE APP:
+echo 1. Connect your Laptop and Phone to the SAME WiFi / Hotspot.
+echo 2. Open the App and enter this URL exactly as shown:
 echo.
-echo If app says "Server Offline":
-echo   1. Wait 10-15 seconds for tunnel to connect
-echo   2. Swipe down to refresh in the app
-echo   3. Check if both cmd windows are still open
+echo    Server Base URL:  http://%ip%:8000
+echo.
+echo Note: We have disabled Localtunnel because their free servers
+echo are currently crashing (causing 502 Bad Gateway errors). 
+echo Local WiFi is 100x faster and never crashes!
+echo ========================================================
 echo.
 pause

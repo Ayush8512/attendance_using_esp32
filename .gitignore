@@ -33,7 +33,7 @@ reports/
 *.pdf
 
 # College Private Roster & Data
-*roster*
+*roster*.csv
 backend/load_iert_roster.py
 load_iert_roster.py
 *.apk
