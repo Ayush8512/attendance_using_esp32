@@ -4,7 +4,7 @@ from datetime import datetime, date
 import json
 from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE, TIMETABLE, ATTENDANCE_WINDOW_MINUTES
-from utils import get_year_label
+from utils import get_year_label, get_ist_now
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
 from services.timetable_service import get_class_info_from_db, check_attendance_window
 import logging
