@@ -120,7 +120,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
       });
 
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 6),
+        timeout: const Duration(seconds: 60),
         androidUsesFineLocation: true,
       );
 

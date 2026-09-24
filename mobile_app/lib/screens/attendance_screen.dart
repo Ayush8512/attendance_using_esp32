@@ -112,7 +112,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _syncProfileFromServer(String serverUrl, String rollNo) async {
     try {
       final uri = Uri.parse('$serverUrl/students/$rollNo');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 5));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final newBranch = (data['branch_code'] ?? '').toString();
@@ -181,7 +181,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         url += '?${Uri(queryParameters: params).query}';
       }
       final uri = Uri.parse(url);
-      final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 8));
+      final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -301,7 +301,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       });
 
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 4),
+        timeout: const Duration(seconds: 60),
         androidUsesFineLocation: true,
       );
       await Future.delayed(const Duration(seconds: 4));

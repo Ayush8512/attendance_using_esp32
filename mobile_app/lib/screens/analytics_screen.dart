@@ -58,7 +58,7 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
 
     try {
       final uri = Uri.parse('${widget.serverUrl}/students/${widget.rollNo}/analytics');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 12));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {

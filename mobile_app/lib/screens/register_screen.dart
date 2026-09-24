@@ -157,7 +157,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     setState(() => _isSearchingRoster = true);
     try {
       final uri = Uri.parse('$serverUrl/roster/lookup/${Uri.encodeComponent(query.trim())}');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 6));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (data['found'] == true && data['student'] != null) {
@@ -411,7 +411,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           'roll_no': rollNo,
           'device_id': deviceId,
         },
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -952,7 +952,7 @@ class _BrowseRosterSheetState extends State<_BrowseRosterSheet> {
     try {
       final query = _searchController.text.trim();
       final uri = Uri.parse('${widget.serverUrl}/roster/students?section=$_section&search=${Uri.encodeComponent(query)}&limit=100');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 10));
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {
