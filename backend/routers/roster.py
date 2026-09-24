@@ -257,11 +257,11 @@ async def get_roster_stats():
     """Get high-level registration stats across all 7 branches & 4 years."""
     db = await get_db()
     try:
-        tot_roster_cur = await db.execute("SELECT COUNT(*) FROM college_roster")
-        total_roster = list((await tot_roster_cur.fetchone()).values())[0]
+        tot_roster_cur = await db.execute("SELECT COUNT(*) as total FROM college_roster")
+        total_roster = (await tot_roster_cur.fetchone())["total"] or 0
 
-        tot_reg_cur = await db.execute("SELECT COUNT(*) FROM students")
-        total_registered = list((await tot_reg_cur.fetchone()).values())[0]
+        tot_reg_cur = await db.execute("SELECT COUNT(*) as total FROM students")
+        total_registered = (await tot_reg_cur.fetchone())["total"] or 0
 
         branch_cur = await db.execute(
             """
