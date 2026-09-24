@@ -43,7 +43,7 @@ function router() {
             renderNavbar(path);
         } catch (error) {
             console.error(error);
-            appDiv.innerHTML = `<div class="text-red-500 p-4 bg-red-500 bg-opacity-20 rounded-lg">Error loading page: ${error.message}</div>`;
+            appDiv.innerHTML = `<div class="text-red-500 p-4 bg-red-500 bg-opacity-20 rounded-lg">Error loading page: ${error.stack}</div>`;
         }
     }, 50);
 }
