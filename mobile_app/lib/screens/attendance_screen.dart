@@ -317,6 +317,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         });
       }
     }
+  }
+
   void _promptAdminPasscodeAndShowSettings() {
     final pinController = TextEditingController();
     showDialog(
