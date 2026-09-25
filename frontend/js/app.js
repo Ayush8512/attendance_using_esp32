@@ -2,7 +2,7 @@ import { renderNavbar } from './components/navbar.js';
 import dashboardPage from './pages/dashboard.js';
 import studentsPage from './pages/students.js';
 import attendancePage from './pages/attendance.js';
-import classroomPage from './pages/classroom.js';
+import classroomPage from './pages/classroom.js?v=1.2';
 import timetablePage from './pages/timetable.js';
 
 const routes = {
