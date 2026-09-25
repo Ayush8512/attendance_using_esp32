@@ -6,7 +6,7 @@ from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE, TIMETABLE, ATTENDANCE_WINDOW_MINUTES
 from utils import get_year_label, get_ist_now
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
-from services.timetable_service import get_class_info_from_db, check_attendance_window
+from services.timetable_service import get_class_info_from_db, check_attendance_window, get_all_live_classes_from_db
 import logging
 logger = logging.getLogger('attendance')
 
@@ -31,6 +31,10 @@ async def view_timetable(
 
     now = get_ist_now()
     current_class = await get_class_info_from_db(now, section=clean_sec, branch_code=clean_branch, year=year)
+    all_live_classes = await get_all_live_classes_from_db(now)
+
+    if not current_class and not clean_sec and not clean_branch and all_live_classes:
+        current_class = all_live_classes[0]
 
     window_status = None
     if current_class:
@@ -205,6 +209,7 @@ async def view_timetable(
             "hour": now.hour,
             "time": now.strftime("%H:%M:%S"),
             "class": current_class,
+            "live_classes": all_live_classes,
             "window_status": window_status,
         },
         "timetable": schedule,

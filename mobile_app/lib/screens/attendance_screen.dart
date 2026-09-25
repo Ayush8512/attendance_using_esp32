@@ -423,6 +423,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ? 'Cannot connect to college server. Swipe down to refresh.'
         : (_windowStatus != null ? _windowStatus!['message'] ?? '' : 'No active attendance window.');
 
+    String classTimingStr = '';
+    String windowTimingStr = '';
+    if (hasActiveSubject) {
+      if (_currentClass!['timing_12h'] != null && _currentClass!['timing_12h'].toString().isNotEmpty) {
+        classTimingStr = _currentClass!['timing_12h'].toString();
+      } else if (_currentClass!['time_label'] != null && _currentClass!['time_label'].toString().isNotEmpty) {
+        classTimingStr = _currentClass!['time_label'].toString();
+      } else {
+        final startH = _currentClass!['hour'] ?? 0;
+        final startM = _currentClass!['start_minute'] ?? 0;
+        final endH = _currentClass!['end_hour'] ?? (startH + 1);
+        final endM = _currentClass!['end_minute'] ?? 0;
+        classTimingStr = '${startH.toString().padLeft(2, '0')}:${startM.toString().padLeft(2, '0')} - ${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
+      }
+
+      if (_windowStatus != null && _windowStatus!['window_end'] != null) {
+        windowTimingStr = _windowStatus!['window_end'].toString();
+      } else if (_currentClass!['window_end_time'] != null) {
+        windowTimingStr = _currentClass!['window_end_time'].toString();
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: GestureDetector(
@@ -662,14 +684,47 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             color: hasActiveSubject ? Colors.black87 : Colors.grey.shade600,
                           ),
                         ),
+                        if (classTimingStr.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.access_time_filled, size: 16, color: Color(0xFF0F3460)),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Class Timing: ',
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  classTimingStr,
+                                  style: const TextStyle(
+                                    color: Color(0xFF0F3460),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         if (teacherEmail.isNotEmpty) ...[
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
                             'Teacher: $teacherEmail',
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                           ),
                         ],
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
@@ -690,7 +745,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               Expanded(
                                 child: Text(
                                   isWindowOpen
-                                      ? 'Window OPEN — You can mark attendance now!'
+                                      ? (windowTimingStr.isNotEmpty
+                                          ? 'Window OPEN — Mark attendance before $windowTimingStr!'
+                                          : 'Window OPEN — You can mark attendance now!')
                                       : (windowMessage.isNotEmpty ? windowMessage : 'No active attendance window.'),
                                   style: TextStyle(
                                     fontSize: 12,
@@ -814,7 +871,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               final isLive = _currentClass != null &&
                                   _currentClass!['subject'] == subj &&
                                   _currentClass!['hour'] == item['hour'];
-                              final timeStr = item['time_label'] ?? '${item['hour']}:00';
+                              final timeStr = item['timing_12h'] ?? item['time_label'] ?? '${item['hour']}:00';
                               final teacher = item['teacher_email']?.toString() ?? '';
                               final sec = item['section']?.toString() ?? '';
                               final dayStr = item['day']?.toString() ?? '';

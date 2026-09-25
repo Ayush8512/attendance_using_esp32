@@ -120,3 +120,58 @@ async def generate_report_api(req: ReportRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/admin/end-class')
+@router.post('/end_class')
+async def end_class_endpoint(
+    subject: str = Form(...),
+    teacher_email: str | None = Form(None),
+    section: str | None = Form(None),
+    branch_code: str | None = Form(None),
+):
+    """End a live class session, generate an attendance Excel spreadsheet, and email it to the teacher."""
+    try:
+        from utils import get_ist_now
+        today = get_ist_now().strftime("%Y-%m-%d")
+        clean_subj = subject.strip()
+        clean_sec = section.strip().upper() if section and section.strip() not in ("ALL", "ALL SECTIONS") else None
+        clean_br = branch_code.strip().upper() if branch_code and branch_code.strip() not in ("ALL", "ALL BRANCHES") else None
+
+        filepath, filename = await generate_attendance_excel(
+            subject=clean_subj,
+            start_date=today,
+            end_date=today,
+            section=clean_sec,
+            branch=clean_br,
+        )
+
+        email_status = "Excel sheet generated."
+        target_email = teacher_email.strip() if teacher_email and teacher_email.strip() else None
+        if not target_email:
+            from config import SENDER_EMAIL
+            target_email = SENDER_EMAIL
+
+        if target_email:
+            try:
+                send_email_with_attachment(
+                    target_email,
+                    f"Class Attendance Sheet: {clean_subj} ({today})",
+                    f"Attached is the official attendance sheet for '{clean_subj}' conducted on {today}.\nSection: {clean_sec or 'All'}\nBranch: {clean_br or 'All'}.",
+                    filepath,
+                )
+                email_status = f"Excel attendance sheet generated and emailed to {target_email}."
+            except Exception as mail_err:
+                logger.warning("Could not email sheet to %s: %s", target_email, mail_err)
+                email_status = f"Excel sheet generated, but email delivery skipped/failed: {mail_err}"
+
+        return {
+            "status": "success",
+            "message": email_status,
+            "download_url": f"/reports/{filename}",
+            "filename": filename,
+        }
+    except Exception as e:
+        logger.error("End class failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+

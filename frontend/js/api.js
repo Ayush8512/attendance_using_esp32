@@ -117,5 +117,9 @@ export const api = {
     }),
     resetStudentDevice: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/reset-device`, {
         method: "POST"
+    }),
+    endClass: (formData) => fetchWithHandler("/admin/end-class", {
+        method: "POST",
+        body: formData
     })
 };
