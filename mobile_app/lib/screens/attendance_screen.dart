@@ -45,6 +45,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _serverDay = '';
   String _serverTime = '';
   String _timetableError = '';
+  int _consecutiveFailures = 0;
 
   List<Map<String, dynamic>> get _todayClasses {
     if (_timetableList.isEmpty) return [];
@@ -73,10 +74,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
     });
 
-    // Auto-refresh timetable and beacon every 15 seconds
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    // Auto-refresh timetable and beacon every 30 seconds
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted && !_isManualScanning) {
-        _fetchLiveTimetable();
+        _fetchLiveTimetable(isBackground: true);
       }
     });
   }
@@ -168,9 +169,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     ].request();
   }
 
-  Future<void> _fetchLiveTimetable() async {
+  Future<void> _fetchLiveTimetable({bool isBackground = false}) async {
     if (_serverUrl.isEmpty) return;
-    setState(() => _isLoadingTimetable = true);
+    if (!isBackground || _timetableList.isEmpty) {
+      setState(() => _isLoadingTimetable = true);
+    }
     try {
       String url = '$_serverUrl/timetable';
       final params = <String, String>{};
@@ -181,8 +184,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         url += '?${Uri(queryParameters: params).query}';
       }
       final uri = Uri.parse(url);
-      final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
+      final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 12));
       if (response.statusCode == 200) {
+        _consecutiveFailures = 0;
         try {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
           final currentSlot = data['current_slot'] as Map<String, dynamic>?;
@@ -221,24 +225,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           }
         } catch (e) {
           debugPrint('[TIMETABLE] Parse error: $e');
-          if (mounted) {
-            setState(() {
-              _timetableError = 'Invalid server response';
-            });
-          }
         }
       } else {
-        if (mounted) {
+        _consecutiveFailures++;
+        if (_consecutiveFailures >= 2 && mounted) {
           setState(() {
-            _timetableError = 'Server offline (${response.statusCode})';
+            _timetableError = 'Server temporarily unavailable (${response.statusCode})';
           });
         }
       }
     } catch (e) {
       debugPrint('[TIMETABLE] Failed to fetch: $e');
-      if (mounted) {
+      _consecutiveFailures++;
+      if (_consecutiveFailures >= 2 && mounted) {
         setState(() {
-          _timetableError = 'Connection error';
+          _timetableError = 'Connection error. Retrying...';
         });
       }
     } finally {

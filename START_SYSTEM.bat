@@ -16,11 +16,11 @@ echo     Waiting 12 seconds for tunnel subdomain to be released...
 timeout /t 12 /nobreak >nul
 
 echo [2/3] Starting Backend Server...
-start "Backend Server" cmd /k "cd /d d:\RFID\backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+start "Backend Server" cmd /k "cd /d d:\RFID\backend && uvicorn main:app --host 0.0.0.0 --port 8000"
 timeout /t 4 /nobreak >nul
 
-echo [3/3] Starting Tunnel (ayush-smart-backend.loca.lt)...
-start "Localtunnel" cmd /k "npx localtunnel --port 8000 --subdomain ayush-smart-backend"
+echo [3/3] Starting Tunnel with Auto-Reconnect (ayush-smart-backend.loca.lt)...
+start "Localtunnel KeepAlive" cmd /k "d:\RFID\RUN_TUNNEL.bat"
 timeout /t 3 /nobreak >nul
 
 start http://localhost:8000
