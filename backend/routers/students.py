@@ -74,16 +74,14 @@ async def register_student(
 
         # Check for existing student
         cursor = await db.execute(
-            "SELECT roll_no, name, is_locked, device_id FROM students WHERE roll_no = ?", (clean_roll,)
+            """
+            SELECT roll_no, name, is_locked, device_id, face_encoding, 
+                   branch_code, branch_name, section, year, class_roll_no 
+            FROM students WHERE roll_no = ?
+            """,
+            (clean_roll,)
         )
         existing = await cursor.fetchone()
-
-        # Security Protection: If student already exists and is locked, block re-registration
-        if existing and (existing["is_locked"] is None or existing["is_locked"] == 1):
-            raise HTTPException(
-                status_code=403,
-                detail=f"Roll Number '{clean_roll}' is already locked with a registered biometric profile. Re-registration is blocked for security. Please ask your Teacher/Admin from dashboard to unlock your biometrics.",
-            )
 
         try:
             photo_bytes = await photo.read()
@@ -94,7 +92,76 @@ async def register_student(
         encoding_json = json.dumps(encoding)
         now_iso = datetime.now().isoformat()
 
+        # --- Re-login / Profile Restore after App Reinstall ---
         if existing:
+            existing_enc_str = existing["face_encoding"]
+            is_face_match = False
+            match_dist = 1.0
+            match_conf = 0.0
+
+            if existing_enc_str:
+                try:
+                    existing_enc = json.loads(existing_enc_str)
+                    is_face_match, match_dist, match_conf = match_encoding(existing_enc, encoding)
+                except Exception as e:
+                    logger.error("Error matching existing face encoding for %s: %s", clean_roll, e)
+                    is_face_match = False
+
+            if is_face_match:
+                # Genuine student confirmed via biometric match!
+                # Re-bind device (e.g. after reinstalling app or changing phone)
+                await db.execute(
+                    """
+                    UPDATE students SET
+                        device_id = CASE WHEN ? != '' THEN ? ELSE device_id END,
+                        updated_at = ?
+                    WHERE roll_no = ?
+                    """,
+                    (clean_device, clean_device, now_iso, clean_roll),
+                )
+                await db.commit()
+
+                # Sync in-memory face index
+                global_face_index.add_student(clean_roll, encoding)
+
+                logger.info(
+                    "Student %s (%s) restored profile via biometric match (dist=%.3f, conf=%.1f%%). Device: %s",
+                    clean_roll, existing["name"], match_dist, match_conf, clean_device
+                )
+
+                b_code = existing["branch_code"] or final_branch
+                b_name = existing["branch_name"] or final_branch_name or BRANCH_METADATA.get(b_code, {}).get("name", "")
+                sec = existing["section"] or final_section
+                yr = existing["year"] or final_year
+                c_roll = existing["class_roll_no"] or final_class_roll
+
+                return {
+                    "status": "success",
+                    "is_update": False,
+                    "is_restored": True,
+                    "message": f"Biometric Match Verified! Welcome back, {existing['name']}. Your registered profile has been restored to this device.",
+                    "student": {
+                        "roll_no": clean_roll,
+                        "name": existing["name"] or clean_name,
+                        "branch_code": b_code,
+                        "branch_name": b_name,
+                        "section": sec,
+                        "year": yr,
+                        "class_roll_no": c_roll,
+                    },
+                }
+
+            # If face does NOT match registered student:
+            if existing["is_locked"] is None or existing["is_locked"] == 1:
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"Biometric Identity Mismatch! Roll Number '{clean_roll}' belongs to '{existing['name']}', "
+                        f"but the face in this selfie does NOT match their registered profile (distance: {match_dist:.2f}). "
+                        f"Imposter registration / login blocked."
+                    ),
+                )
+
             # Re-enroll student (previously unlocked by admin) and lock
             await db.execute(
                 """
@@ -228,7 +295,7 @@ async def login_student(
         if registered_dev and registered_dev != clean_device:
             raise HTTPException(
                 status_code=403,
-                detail=f"Device Binding Alert! Student profile for '{student['name']}' ({clean_roll}) is locked to another phone. You cannot login from multiple devices. Contact Teacher/Admin from dashboard to reset device binding.",
+                detail=f"Device Binding Alert! Student profile for '{student['name']}' ({clean_roll}) is locked to a previous phone or installation. If you reinstalled the app, simply take a selfie on the registration screen to verify your face and restore your profile instantly.",
             )
 
         # 4. If student has no device bound yet, bind this device now!

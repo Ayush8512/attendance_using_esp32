@@ -294,15 +294,25 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
       }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final yrLabel = AppSettings.getYearLabel(section);
+        final studentData = data['student'] as Map<String, dynamic>? ?? {};
+        final finalName = studentData['name'] ?? name;
+        final finalRoll = studentData['roll_no'] ?? rollNo;
+        final finalBranch = studentData['branch_code'] ?? branchCode;
+        final finalSection = studentData['section'] ?? section;
+        final finalClassRoll = (studentData['class_roll_no'] ?? _classRollNo).toString();
+        final finalYear = (studentData['year'] ?? '').toString();
+        final yrLabel = AppSettings.getYearLabel(finalYear.isNotEmpty ? finalYear : finalSection);
+        final isRestored = data['is_restored'] == true;
+
         // Save locally in SharedPreferences
         await AppSettings.saveProfile(
-          name: name,
-          rollNo: rollNo,
+          name: finalName,
+          rollNo: finalRoll,
           serverUrl: serverUrl,
-          branch: branchCode,
-          section: section,
-          classRoll: _classRollNo,
+          branch: finalBranch,
+          section: finalSection,
+          classRoll: finalClassRoll,
+          year: finalYear,
         );
 
         if (!mounted) return;
@@ -311,15 +321,21 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            icon: const Icon(Icons.check_circle, color: Colors.green, size: 50),
-            title: const Text('Registration Successful!'),
+            icon: Icon(
+              isRestored ? Icons.verified_user : Icons.check_circle,
+              color: Colors.green,
+              size: 50,
+            ),
+            title: Text(isRestored ? 'Profile Restored!' : 'Registration Successful!'),
             content: Text(
-              'Welcome $name!\n\n'
-              '• Academic Year: $yrLabel\n'
-              '• Branch: ${branchName.isNotEmpty ? branchName : "General"}\n'
-              '• Section: ${section.isNotEmpty ? section : "N/A"}\n'
-              '• Roll No: $rollNo\n\n'
-              'Your profile and face biometrics are verified and saved.',
+              isRestored
+                  ? 'Welcome back, $finalName!\n\nYour biometric identity was confirmed with your registered face. Your profile has been restored to this device.'
+                  : 'Welcome $finalName!\n\n'
+                      '• Academic Year: $yrLabel\n'
+                      '• Branch: ${branchName.isNotEmpty ? branchName : "General"}\n'
+                      '• Section: ${finalSection.isNotEmpty ? finalSection : "N/A"}\n'
+                      '• Roll No: $finalRoll\n\n'
+                      'Your profile and face biometrics are verified and saved.',
             ),
             actions: [
               FilledButton(
@@ -557,12 +573,12 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'IERT Prayagraj Student Onboarding',
+                                'IERT Student Registration & Biometric Login',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F3460)),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Select your Branch & Section or type your Roll No to auto-fill official details from the master college roster (1,706 students).',
+                                'Enter your Roll No & take a selfie. If new, you will be registered. If you reinstalled the app, your face will be verified and profile restored automatically!',
                                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.3),
                               ),
                             ],
@@ -885,7 +901,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                           )
                         : const Icon(Icons.how_to_reg, size: 24),
                     label: Text(
-                      _isRegistering ? 'Registering Face…' : 'Register Profile & Face',
+                      _isRegistering ? 'Verifying Biometrics…' : 'Register / Biometric Login',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
