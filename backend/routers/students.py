@@ -318,10 +318,20 @@ async def get_student_attendance_analytics(roll_no: str):
     db = await get_db()
     try:
         # Check student exists
-        cursor = await db.execute("SELECT roll_no, name FROM students WHERE roll_no = ?", (clean_roll,))
+        cursor = await db.execute("SELECT roll_no, name, section, branch_code, year FROM students WHERE roll_no = ?", (clean_roll,))
         student = await cursor.fetchone()
         if not student:
-            raise HTTPException(status_code=404, detail=f"Student with Roll Number '{clean_roll}' not found.")
+            r_cur = await db.execute(
+                "SELECT primary_roll_no as roll_no, name, section, branch_code, year FROM college_roster WHERE primary_roll_no = ? LIMIT 1",
+                (clean_roll,)
+            )
+            student = await r_cur.fetchone()
+            if not student:
+                raise HTTPException(status_code=404, detail=f"Student with Roll Number '{clean_roll}' not found.")
+
+        stu_sec = (student["section"] or "").strip().upper()
+        stu_branch = (student["branch_code"] or "").strip().upper()
+        stu_year = student["year"] or 0
 
         # Get all attendance records for this student
         cur_att = await db.execute(
@@ -335,41 +345,86 @@ async def get_student_attendance_analytics(roll_no: str):
         )
         records = await cur_att.fetchall()
 
-        # Get total classes held across the institution per subject
-        cur_total_classes = await db.execute(
-            """
-            SELECT subject, COUNT(DISTINCT date) as total_held
-            FROM attendance
-            WHERE subject != ''
-            GROUP BY subject
-            """
-        )
-        total_held_rows = await cur_total_classes.fetchall()
-        total_held_map = {row["subject"]: max(1, row["total_held"]) for row in total_held_rows}
-
         # Subject-wise attendance calculation for this student
         subject_attended: dict[str, int] = {}
         for r in records:
             subj = (r["subject"] or "General Class").strip()
             subject_attended[subj] = subject_attended.get(subj, 0) + 1
 
-        # Also include subjects from timetable if not yet held
-        cur_tt = await db.execute("SELECT DISTINCT subject FROM timetable WHERE subject != ''")
-        tt_subjects = [row["subject"] for row in await cur_tt.fetchall()]
+        # Fetch subjects scheduled strictly for this student's section or branch (or all sections)
+        where_tt = ["subject != ''"]
+        params_tt = []
+        if stu_sec:
+            where_tt.append(
+                """(
+                    UPPER(section) = ?
+                    OR (
+                        (section IS NULL OR section = '' OR UPPER(section) = 'ALL' OR UPPER(section) = 'ALL SECTIONS')
+                        AND (branch_code IS NULL OR branch_code = '' OR UPPER(branch_code) = 'ALL' OR UPPER(branch_code) = 'ALL BRANCHES' OR UPPER(branch_code) = ?)
+                    )
+                )"""
+            )
+            params_tt.extend([stu_sec, stu_branch])
+        elif stu_branch:
+            where_tt.append(
+                """(
+                    UPPER(branch_code) = ?
+                    OR branch_code IS NULL OR branch_code = '' OR UPPER(branch_code) = 'ALL' OR UPPER(branch_code) = 'ALL BRANCHES'
+                )"""
+            )
+            params_tt.append(stu_branch)
+
+        q_tt = f"SELECT DISTINCT subject FROM timetable WHERE {' AND '.join(where_tt)}"
+        cur_tt = await db.execute(q_tt, params_tt)
+        tt_subjects = [row["subject"].strip() for row in await cur_tt.fetchall() if row["subject"]]
+
+        # Total classes held: only count for this student's section/branch
+        where_classes = ["subject != ''"]
+        params_classes = []
+        if stu_sec:
+            where_classes.append(
+                """(
+                    UPPER(section) = ?
+                    OR section IS NULL OR section = '' OR UPPER(section) = 'ALL' OR UPPER(section) = 'ALL SECTIONS'
+                )"""
+            )
+            params_classes.append(stu_sec)
+        elif stu_branch:
+            where_classes.append(
+                """(
+                    UPPER(branch_code) = ?
+                    OR branch_code IS NULL OR branch_code = '' OR UPPER(branch_code) = 'ALL' OR UPPER(branch_code) = 'ALL BRANCHES'
+                )"""
+            )
+            params_classes.append(stu_branch)
+
+        q_classes = f"""
+            SELECT subject, COUNT(DISTINCT date) as total_held
+            FROM attendance
+            WHERE {' AND '.join(where_classes)}
+            GROUP BY subject
+        """
+        cur_total_classes = await db.execute(q_classes, params_classes)
+        total_held_rows = await cur_total_classes.fetchall()
+        total_held_map = {row["subject"].strip(): max(1, row["total_held"]) for row in total_held_rows}
+
         for subj in tt_subjects:
-            clean_subj = subj.strip()
-            if clean_subj not in total_held_map:
-                total_held_map[clean_subj] = 0
+            if subj not in total_held_map:
+                total_held_map[subj] = 0
+
+        # Only evaluate subjects that belong to this student's section or were attended by this student
+        relevant_subjects = set(subject_attended.keys()).union(set(tt_subjects))
 
         subjects_summary = []
         shortage_subjects = []
         total_attended_all = len(records)
-        total_held_all = sum(total_held_map.values()) if total_held_map else max(1, total_attended_all)
+        total_held_all = sum(total_held_map.get(s, 0) for s in relevant_subjects)
         if total_held_all == 0:
             total_held_all = max(1, total_attended_all)
 
-        for subj, held in total_held_map.items():
+        for subj in sorted(relevant_subjects):
             attended = subject_attended.get(subj, 0)
+            held = total_held_map.get(subj, 0)
             effective_held = held if held > 0 else (attended if attended > 0 else 1)
             percentage = round((attended / effective_held) * 100, 1) if effective_held > 0 else 100.0
             percentage = min(100.0, percentage)

@@ -317,6 +317,55 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         });
       }
     }
+  void _promptAdminPasscodeAndShowSettings() {
+    final pinController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: Color(0xFF0F3460)),
+            SizedBox(width: 8),
+            Text('Admin Settings', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter admin password to configure server settings:', style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Admin Password',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final pin = pinController.text.trim();
+              if (pin == 'admin123' || pin == 'Ayush' || pin == 'H2so4.Al2so4' || pin == '2026') {
+                Navigator.pop(ctx);
+                _showSettingsDialog();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Incorrect admin password.'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Unlock'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSettingsDialog() {
@@ -448,7 +497,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       appBar: AppBar(
         title: GestureDetector(
-          onLongPress: _showSettingsDialog,
+          onLongPress: _promptAdminPasscodeAndShowSettings,
           child: const Text('Smart Attendance'),
         ),
         centerTitle: true,
@@ -774,30 +823,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.cloud_off, color: Colors.red.shade700, size: 20),
+                        Icon(Icons.cloud_off, color: Colors.red.shade700, size: 22),
                         const SizedBox(width: 10),
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Server Offline / Connection Issue',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.red.shade900),
+                                'College Server Offline',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF991B1B)),
                               ),
+                              SizedBox(height: 2),
                               Text(
-                                'Connecting to: $_serverUrl\nRun START_SERVER.bat on your PC.',
-                                style: TextStyle(fontSize: 10, color: Colors.red.shade800),
+                                'Unable to connect to college attendance service. Please check your internet or retry.',
+                                style: TextStyle(fontSize: 10.5, color: Colors.black87),
                               ),
                             ],
                           ),
                         ),
-                        TextButton(
-                          onPressed: _showSettingsDialog,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                          ),
-                          child: const Text('Change URL', style: TextStyle(fontSize: 11)),
+                        IconButton(
+                          icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF0F3460)),
+                          tooltip: 'Retry Connection',
+                          onPressed: () {
+                            _fetchLiveTimetable();
+                            _startManualBeaconScan();
+                          },
                         ),
                       ],
                     ),
