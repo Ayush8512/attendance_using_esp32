@@ -24,17 +24,17 @@ To generate a release Android APK:
 ```bash
 flutter build apk --release
 ```
-The output APK will be saved at `build/app/outputs/flutter-apk/app-release.apk` (and mirrored to `d:\RFID\SmartAttendance.apk`).
+The output APK will be saved at `build/app/outputs/flutter-apk/app-release.apk` (and mirrored to `./SmartAttendance.apk`).
 
 ### 3. Flash ESP32 Classroom Beacon
-1. Open [`hardware/esp32_classroom_beacon/esp32_classroom_beacon.ino`](file:///d:/RFID/hardware/esp32_classroom_beacon/esp32_classroom_beacon.ino) in Arduino IDE.
+1. Open [`hardware/esp32_classroom_beacon/esp32_classroom_beacon.ino`](./hardware/esp32_classroom_beacon/esp32_classroom_beacon.ino) in Arduino IDE.
 2. Select **ESP32 Dev Module** as board.
 3. Upload sketch. The onboard LED will turn ON and broadcast the classroom beacon.
 
 ---
 
 ## 🔒 Security & Data Privacy
-- [`.gitignore`](file:///d:/RFID/.gitignore) strictly prevents raw roster documents, private Excel sheets, database files, and `.env` credentials from being committed to version control.
+- [`.gitignore`](./.gitignore) strictly prevents raw roster documents, private Excel sheets, database files, and `.env` credentials from being committed to version control.
 
 
 ## 📂 Repository Organization (Modular Architecture)
