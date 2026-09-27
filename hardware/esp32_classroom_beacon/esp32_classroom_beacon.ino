@@ -9,9 +9,9 @@
  * beacon and unlocks the attendance scan:
  * "Beacon Detected. Tap to mark attendance."
  * 
- * SECURITY NOTE:
- * Replace BEACON_UUID and BEACON_UUID_REV below with your actual private classroom
- * UUID before flashing to ESP32 hardware. Keep it matched with mobile_app/lib/utils/constants.dart.
+ * CONFIGURATION:
+ * 1. Private settings are loaded from "beacon_config.h" (ignored by git).
+ * 2. If not present, fallback settings are loaded from "beacon_config.h.example".
  */
 
 #include <Arduino.h>
@@ -21,12 +21,19 @@
 #include "BLEBeacon.h"
 #include "esp_sleep.h"
 
-// Proximity UUID placeholder (Replace with your actual private classroom UUID before flashing)
-#define BEACON_UUID           "00000000-0000-0000-0000-000000000000"
-// In ESP32 BLE stack, string UUID is parsed in little-endian byte order, so reverse representation ensures correct over-the-air UUID
-#define BEACON_UUID_REV       "00000000-0000-0000-0000-000000000000"
-#define BEACON_NAME           "SAS_Classroom_Beacon"
-#define LED_PIN               2
+// ----------------------------------------------------------------------------
+// Configuration Loader
+// ----------------------------------------------------------------------------
+#if __has_include("beacon_config.h")
+    #include "beacon_config.h"
+#elif __has_include("beacon_config.h.example")
+    #include "beacon_config.h.example"
+#else
+    #define BEACON_UUID       "00000000-0000-0000-0000-000000000000"
+    #define BEACON_UUID_REV   "00000000-0000-0000-0000-000000000000"
+    #define BEACON_NAME       "SAS_Classroom_Beacon"
+    #define LED_PIN           2
+#endif
 
 BLEAdvertising *pAdvertising;
 

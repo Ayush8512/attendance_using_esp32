@@ -39,6 +39,11 @@ load_iert_roster.py
 *.apk
 cloudflared.exe
 
+# Hardware Secrets & Private Beacon Configs
+hardware/**/beacon_config.h
+hardware/**/secrets.h
+beacon_config.h
+
 
 # Flutter / Dart
 .dart_tool/

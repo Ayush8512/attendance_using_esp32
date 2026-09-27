@@ -1,0 +1,11 @@
+#pragma once
+
+// ============================================================================
+// Classroom Beacon Configuration Template
+// Copy this file to "beacon_config.h" and set your classroom's private UUID.
+// ============================================================================
+
+#define BEACON_UUID           "00000000-0000-0000-0000-000000000000"
+#define BEACON_UUID_REV       "00000000-0000-0000-0000-000000000000"
+#define BEACON_NAME           "SAS_Classroom_Beacon"
+#define LED_PIN               2
