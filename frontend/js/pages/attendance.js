@@ -28,7 +28,7 @@ export default {
             </div>
 
             <!-- Filters -->
-            <div class="bg-cardbg rounded-xl border border-gray-700 p-4 mb-6 shadow-md">
+            <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 mb-6 shadow-sm">
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
                     <div>
                         <label class="block text-xs font-medium text-gray-400 mb-1">Branch</label>
@@ -60,10 +60,10 @@ export default {
                         <input type="date" id="filter-date" class="w-full px-3 py-2 rounded-lg bg-darkbg border border-gray-600 text-white focus:outline-none focus:border-highlight text-sm">
                     </div>
                     <div class="flex gap-2">
-                        <button id="btn-filter" class="flex-1 bg-highlight hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium h-[38px] transition-colors flex items-center justify-center gap-1.5 text-sm">
+                        <button id="btn-filter" class="flex-1 bg-highlight hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium h-[38px] transition-colors flex items-center justify-center gap-1.5 text-sm shadow-sm">
                             <i class="fas fa-filter"></i> Apply
                         </button>
-                        <button id="btn-reset-filter" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-2 rounded-lg font-medium h-[38px] transition-colors text-sm" title="Reset Filters">
+                        <button id="btn-reset-filter" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-2 rounded-md font-medium h-[38px] transition-colors text-sm" title="Reset Filters">
                             <i class="fas fa-undo"></i>
                         </button>
                     </div>
@@ -74,7 +74,7 @@ export default {
             </div>
 
             <!-- Table -->
-            <div class="bg-cardbg rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+            <div class="bg-cardbg rounded-lg border border-gray-700 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse" id="attendance-table">
                         <thead>
@@ -98,7 +98,7 @@ export default {
 
             <!-- Cumulative Report Modal -->
             <div id="end-class-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+                <div class="bg-cardbg border border-gray-700 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5">
                     <div class="flex items-center justify-between border-b border-gray-700 pb-3">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fas fa-envelope-open-text text-highlight"></i> End Class & Send Report
@@ -154,8 +154,8 @@ export default {
                         </div>
 
                         <div class="pt-2 flex justify-end gap-3">
-                            <button type="button" id="btn-cancel-modal" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
-                            <button type="submit" id="btn-submit-end-class" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
+                            <button type="button" id="btn-cancel-modal" class="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-submit-end-class" class="px-5 py-2 rounded-md bg-highlight hover:bg-blue-700 text-white text-sm font-semibold flex items-center gap-2">
                                 <i class="fas fa-file-excel"></i> Generate & Send Sheet
                             </button>
                         </div>
@@ -165,7 +165,7 @@ export default {
 
             <!-- Manual Attendance Modal -->
             <div id="manual-att-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="bg-cardbg border border-gray-700 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-700 pb-3">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fas fa-user-plus text-emerald-400"></i> Mark Manual Attendance
@@ -237,7 +237,7 @@ export default {
 
             <!-- Edit Attendance Record Modal -->
             <div id="edit-att-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="bg-cardbg border border-gray-700 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-700 pb-3">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fas fa-edit text-highlight"></i> Edit Attendance Record
@@ -302,8 +302,8 @@ export default {
                         </div>
 
                         <div class="pt-2 flex justify-end gap-3">
-                            <button type="button" id="btn-cancel-edit-att" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
-                            <button type="submit" id="btn-save-edit-att" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
+                            <button type="button" id="btn-cancel-edit-att" class="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-save-edit-att" class="px-5 py-2 rounded-md bg-highlight hover:bg-blue-700 text-white text-sm font-semibold flex items-center gap-2">
                                 <i class="fas fa-save"></i> Save Changes
                             </button>
                         </div>
@@ -437,10 +437,10 @@ export default {
 
                     tbody.innerHTML = currentRecords.map(r => {
                         const secBadge = r.section ? `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">${r.section}</span>` : '<span class="text-xs text-gray-500">-</span>';
-                        const branchBadge = r.branch_code ? `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${r.branch_code}</span>` : '';
+                        const branchBadge = r.branch_code ? `<span class="px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold">${r.branch_code}</span>` : '';
 
                         return `
-                            <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                            <tr class="border-b border-gray-700/60 hover:bg-slate-800/50 transition-colors">
                                 <td class="py-4 px-6 text-gray-300 font-mono text-xs">
                                     <span class="font-semibold text-white">${r.date}</span><br/>
                                     <span class="text-gray-400">${r.time}</span>
@@ -452,7 +452,7 @@ export default {
                                     </div>
                                 </td>
                                 <td class="py-4 px-6">
-                                    <span class="bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2.5 py-1 rounded text-xs font-semibold capitalize inline-flex items-center gap-1.5">
+                                    <span class="bg-blue-900/40 text-blue-300 border border-blue-800/50 px-2.5 py-1 rounded text-xs font-semibold capitalize inline-flex items-center gap-1.5">
                                         <i class="fas fa-book-reader text-[10px]"></i> ${r.subject || 'General'}
                                     </span>
                                 </td>
@@ -467,10 +467,10 @@ export default {
                                     <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">${r.status || 'Present'}</span>
                                 </td>
                                 <td class="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
-                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-subject="${r.subject || ''}" data-date="${r.date}" data-time="${r.time}" data-status="${r.status || 'Present'}" data-branch="${r.branch_code || ''}" data-section="${r.section || ''}" class="btn-edit-att text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Edit attendance record">
+                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-subject="${r.subject || ''}" data-date="${r.date}" data-time="${r.time}" data-status="${r.status || 'Present'}" data-branch="${r.branch_code || ''}" data-section="${r.section || ''}" class="btn-edit-att text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Edit attendance record">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
-                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-date="${r.date}" data-subj="${r.subject || ''}" class="btn-delete-att text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Delete record">
+                                    <button data-id="${r.id}" data-roll="${r.roll_no}" data-name="${r.name || ''}" data-date="${r.date}" data-subj="${r.subject || ''}" class="btn-delete-att text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Delete record">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </td>

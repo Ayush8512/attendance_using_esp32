@@ -39,7 +39,7 @@ export default {
             </div>
 
             <!-- Live Active Window Status Card -->
-            <div id="live-slot-card" class="bg-cardbg rounded-xl border border-gray-700 p-6 mb-8 shadow-lg">
+            <div id="live-slot-card" class="bg-cardbg rounded-lg border border-gray-700 p-6 mb-8 shadow-sm">
                 <div class="flex items-center justify-center py-6 text-gray-400">
                     <i class="fas fa-spinner fa-spin mr-2"></i> Loading live class status...
                 </div>
@@ -48,7 +48,7 @@ export default {
             <!-- Main Content: Form & Table Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Left: Add New Class Form -->
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-6 shadow-lg h-fit">
+                <div class="bg-cardbg rounded-lg border border-gray-700 p-6 shadow-sm h-fit">
                     <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
                         <i class="fas fa-calendar-plus text-highlight"></i>
                         Schedule Class
@@ -138,14 +138,14 @@ export default {
                             <span class="text-[11px] text-gray-500">Excel report with student roll list is emailed here.</span>
                         </div>
 
-                        <button type="submit" id="btn-save-class" class="w-full py-2.5 bg-highlight hover:bg-pink-700 text-white font-semibold rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 text-sm">
+                        <button type="submit" id="btn-save-class" class="w-full py-2.5 bg-highlight hover:bg-blue-700 text-white font-semibold rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
                             <i class="fas fa-save"></i> Save Class Schedule
                         </button>
                     </form>
                 </div>
 
                 <!-- Right: Full Timetable Table -->
-                <div class="lg:col-span-2 bg-cardbg rounded-xl border border-gray-700 p-6 shadow-lg">
+                <div class="lg:col-span-2 bg-cardbg rounded-lg border border-gray-700 p-6 shadow-sm">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
                         <h3 class="text-xl font-bold text-white flex items-center gap-2">
                             <i class="fas fa-list-check text-highlight"></i>
@@ -259,7 +259,7 @@ export default {
                 card.innerHTML = `
                     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-gray-400 text-xl">
+                            <div class="w-12 h-12 rounded-md bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-400 text-xl">
                                 <i class="fas fa-moon"></i>
                             </div>
                             <div>
@@ -267,7 +267,7 @@ export default {
                                 <p class="text-xs text-gray-400">Current Server Time: <span class="font-mono text-gray-300">${slot ? slot.day : ''} ${slot ? slot.time : ''}</span></p>
                             </div>
                         </div>
-                        <span class="px-3 py-1 rounded-full bg-gray-700 text-gray-300 text-xs font-semibold">
+                        <span class="px-3 py-1 rounded-md bg-gray-800 border border-gray-700 text-gray-300 text-xs font-semibold">
                             Window Closed
                         </span>
                     </div>
@@ -285,18 +285,18 @@ export default {
             card.innerHTML = `
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 rounded-full ${isWindowOpen ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'} flex items-center justify-center text-2xl border ${isWindowOpen ? 'border-green-500/40' : 'border-red-500/40'}">
+                        <div class="w-12 h-12 rounded-md ${isWindowOpen ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'} flex items-center justify-center text-2xl">
                             <i class="fas ${isWindowOpen ? 'fa-door-open' : 'fa-door-closed'}"></i>
                         </div>
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <h4 class="text-xl font-bold text-white">${slot.class.subject}</h4>
-                                <span class="px-2.5 py-0.5 rounded-full ${isWindowOpen ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'} text-xs font-bold uppercase tracking-wider">
+                                <span class="px-2.5 py-0.5 rounded-md ${isWindowOpen ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'} text-xs font-bold uppercase tracking-wider">
                                     ${isWindowOpen ? '● Attendance Window Open' : '● Window Expired'}
                                 </span>
-                                ${yearNum ? `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${yearLabel}</span>` : ''}
+                                ${yearNum ? `<span class="px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold">${yearLabel}</span>` : ''}
                                 ${section ? `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">Sec ${section}</span>` : ''}
-                                ${branchCode ? `<span class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-xs font-semibold">Branch ${branchCode}</span>` : ''}
+                                ${branchCode ? `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold">Branch ${branchCode}</span>` : ''}
                             </div>
                             <p class="text-xs text-gray-300 mt-1">
                                 Teacher: <span class="text-gray-200">${slot.class.teacher_email}</span> | Server Time: <span class="font-mono text-highlight">${slot.time}</span>
@@ -307,7 +307,7 @@ export default {
                         </div>
                     </div>
 
-                    <button id="btn-end-active-class" class="px-4 py-2.5 bg-accent hover:bg-blue-900 text-white text-xs font-semibold rounded-lg border border-blue-500/30 flex items-center gap-2 transition-colors shadow-md">
+                    <button id="btn-end-active-class" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-md border border-slate-600 flex items-center gap-2 transition-colors shadow-sm">
                         <i class="fas fa-file-excel text-green-400"></i> End Class & Email Sheet
                     </button>
                 </div>
@@ -388,7 +388,7 @@ export default {
                                 <div class="font-semibold text-yellow-300 text-xs">Branch ${bCode}</div>
                                 <div class="text-[10px] text-gray-400 truncate max-w-[140px]">${bName}</div>
                             ` : `<span class="text-gray-500">General</span>`}
-                            <span class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-semibold">${yrLabel}</span>
+                            <span class="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-[10px] font-semibold">${yrLabel}</span>
                         </td>
                         <td class="py-3 px-3">
                             ${sec && sec !== 'All Sections' && sec !== 'All' ? `
@@ -396,7 +396,7 @@ export default {
                             ` : `<span class="text-gray-500 text-xs">All</span>`}
                         </td>
                         <td class="py-3 px-3">
-                            <span class="px-2 py-0.5 rounded-md bg-highlight/20 text-pink-300 border border-highlight/30 text-[11px] font-medium whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded-md bg-blue-900/30 text-blue-300 border border-blue-800/50 text-[11px] font-medium whitespace-nowrap">
                                 ${item.attendance_window}
                             </span>
                         </td>

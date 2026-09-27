@@ -22,10 +22,10 @@ export default {
                     </a>
                 </div>
                 
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-6 shadow-lg">
+                <div class="bg-cardbg rounded-lg border border-gray-700 p-6 shadow-sm">
                     <form id="register-form" class="space-y-6">
                         <!-- Auto-lookup Alert -->
-                        <div id="roster-lookup-banner" class="hidden p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300 text-xs flex items-center gap-2">
+                        <div id="roster-lookup-banner" class="hidden p-3 rounded-md bg-green-500/10 border border-green-500/30 text-green-300 text-xs flex items-center gap-2">
                             <i class="fas fa-check-circle text-base text-green-400"></i>
                             <span id="roster-lookup-text">Official student record verified in college roster!</span>
                         </div>
@@ -85,7 +85,7 @@ export default {
                             <div class="space-y-4 flex flex-col">
                                 <label class="block text-sm font-medium text-gray-400 mb-1">Face Biometric Selfie *</label>
                                 
-                                <div class="flex-1 min-h-[180px] border-2 border-dashed border-gray-600 rounded-xl flex flex-col items-center justify-center p-4 bg-gray-800 bg-opacity-30 relative overflow-hidden group">
+                                <div class="flex-1 min-h-[180px] border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center p-4 bg-gray-800 bg-opacity-30 relative overflow-hidden group">
                                     <img id="photo-preview" class="absolute inset-0 w-full h-full object-cover hidden" alt="Preview">
                                     <div id="photo-placeholder" class="text-center">
                                         <i class="fas fa-camera text-4xl text-gray-500 mb-2"></i>
@@ -106,15 +106,15 @@ export default {
                         <!-- Webcam Container -->
                         <div id="webcam-container" class="hidden flex-col items-center border border-gray-600 rounded-lg p-4 bg-gray-900">
                             <video id="webcam-video" autoplay playsinline class="w-full max-w-sm rounded-lg mb-4 bg-black"></video>
-                            <button type="button" id="btn-capture" class="bg-highlight hover:bg-red-600 text-white px-6 py-2 rounded-full font-medium transition-colors text-sm">
+                            <button type="button" id="btn-capture" class="bg-highlight hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium transition-colors text-sm shadow-sm">
                                 <i class="fas fa-camera mr-2"></i> Capture Selfie
                             </button>
                             <canvas id="webcam-canvas" class="hidden"></canvas>
                         </div>
 
                         <div class="pt-4 border-t border-gray-700 flex justify-end gap-4">
-                            <button type="reset" class="px-6 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors text-sm">Clear</button>
-                            <button type="submit" class="px-6 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white font-medium transition-colors flex items-center shadow text-sm">
+                            <button type="reset" class="px-6 py-2 rounded-md border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors text-sm">Clear</button>
+                            <button type="submit" class="px-6 py-2 rounded-md bg-highlight hover:bg-blue-700 text-white font-medium transition-colors flex items-center shadow-sm text-sm">
                                 <i class="fas fa-save mr-2"></i> Save & Lock Profile
                             </button>
                         </div>

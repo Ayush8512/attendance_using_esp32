@@ -57,71 +57,71 @@ export default {
         const isWindowOpen = isClassActive && stats.activeClass.window_status?.is_open;
 
         container.innerHTML = `
-            <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-gray-700/60 pb-5">
                 <div>
-                    <h2 class="text-3xl font-bold text-white mb-1">Campus Attendance Overview</h2>
-                    <p class="text-gray-400 text-sm">${dateStr} • IERT Prayagraj Smart System</p>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Attendance Summary & Live Monitor</h2>
+                    <p class="text-gray-400 text-sm mt-0.5">Institute of Engineering and Rural Technology, Prayagraj &bull; ${dateStr}</p>
                 </div>
-                <button id="refresh-dashboard" class="bg-cardbg border border-gray-600 hover:border-highlight text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm">
-                    <i class="fas fa-sync-alt"></i> Refresh
+                <button id="refresh-dashboard" class="bg-cardbg border border-gray-600 hover:border-blue-500 text-gray-200 hover:text-white px-3.5 py-2 rounded-md transition-colors flex items-center gap-2 text-xs font-semibold shadow-sm">
+                    <i class="fas fa-sync-alt"></i> Refresh Data
                 </button>
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <!-- 1. Enrolled Roster -->
-                <div class="bg-cardbg rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition-all shadow-md">
+                <div class="bg-cardbg rounded-lg p-5 border border-gray-700/80 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-xs font-medium text-gray-400 mb-1">College Enrolled Roster</p>
-                            <h3 class="text-2xl font-bold text-white">${stats.totalEnrolled.toLocaleString()}</h3>
-                            <p class="text-[11px] text-gray-400 mt-1">7 Branches • 28 Sections</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Enrolled Students</p>
+                            <h3 class="text-2xl font-bold text-white font-mono">${stats.totalEnrolled.toLocaleString()}</h3>
+                            <p class="text-[11px] text-gray-400 mt-1">7 Branches &bull; 28 Sections</p>
                         </div>
-                        <div class="w-12 h-12 bg-accent/30 rounded-xl flex items-center justify-center text-highlight text-xl border border-highlight/20">
-                            <i class="fas fa-graduation-cap"></i>
+                        <div class="w-11 h-11 bg-blue-900/30 rounded-md flex items-center justify-center text-blue-400 text-lg border border-blue-800/40">
+                            <i class="fas fa-university"></i>
                         </div>
                     </div>
                 </div>
                 
                 <!-- 2. Registered Biometrics -->
-                <div class="bg-cardbg rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition-all shadow-md">
+                <div class="bg-cardbg rounded-lg p-5 border border-gray-700/80 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-xs font-medium text-gray-400 mb-1">Biometrics Registered</p>
-                            <h3 class="text-2xl font-bold text-green-400">${stats.registeredBiometrics}</h3>
-                            <p class="text-[11px] text-gray-400 mt-1">Face models encrypted</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Biometrics Active</p>
+                            <h3 class="text-2xl font-bold text-emerald-400 font-mono">${stats.registeredBiometrics}</h3>
+                            <p class="text-[11px] text-gray-400 mt-1">128-d Vector Encrypted</p>
                         </div>
-                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-green-400 text-xl border border-green-500/30">
-                            <i class="fas fa-fingerprint"></i>
+                        <div class="w-11 h-11 bg-emerald-950/40 rounded-md flex items-center justify-center text-emerald-400 text-lg border border-emerald-800/50">
+                            <i class="fas fa-id-card"></i>
                         </div>
                     </div>
                 </div>
 
                 <!-- 3. Present Today -->
-                <div class="bg-cardbg rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition-all shadow-md">
+                <div class="bg-cardbg rounded-lg p-5 border border-gray-700/80 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-xs font-medium text-gray-400 mb-1">Present Today</p>
-                            <h3 class="text-2xl font-bold text-white">${stats.presentToday}</h3>
-                            <p class="text-[11px] text-gray-400 mt-1">Unique verified scans</p>
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Present Today</p>
+                            <h3 class="text-2xl font-bold text-white font-mono">${stats.presentToday}</h3>
+                            <p class="text-[11px] text-gray-400 mt-1">Verified Classroom Scans</p>
                         </div>
-                        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 text-xl border border-blue-500/30">
-                            <i class="fas fa-user-check"></i>
+                        <div class="w-11 h-11 bg-blue-950/40 rounded-md flex items-center justify-center text-blue-400 text-lg border border-blue-800/50">
+                            <i class="fas fa-check-double"></i>
                         </div>
                     </div>
                 </div>
 
                 <!-- 4. Active Lecture -->
-                <div class="bg-cardbg rounded-xl p-5 border border-gray-700 hover:border-gray-600 transition-all shadow-md">
+                <div class="bg-cardbg rounded-lg p-5 border border-gray-700/80 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div class="overflow-hidden mr-2">
-                            <p class="text-xs font-medium text-gray-400 mb-1">Current Lecture Window</p>
-                            <h3 class="text-base font-bold text-white truncate" title="${activeSub}">${activeSub}</h3>
-                            <p class="text-[11px] font-semibold mt-1 ${isWindowOpen ? 'text-green-400' : 'text-gray-400'}">
-                                ${isWindowOpen ? '● Window Open (10 min)' : isClassActive ? '● Window Closed' : 'No Class'}
+                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Current Lecture</p>
+                            <h3 class="text-sm font-bold text-white truncate" title="${activeSub}">${activeSub}</h3>
+                            <p class="text-[11px] font-semibold mt-1 ${isWindowOpen ? 'text-emerald-400' : 'text-gray-400'}">
+                                ${isWindowOpen ? '&bull; Window Active (10 min)' : isClassActive ? '&bull; Window Closed' : 'No Active Session'}
                             </p>
                         </div>
-                        <div class="w-12 h-12 ${isWindowOpen ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-700/50 text-gray-400 border-gray-600'} rounded-xl flex items-center justify-center text-xl border shrink-0">
+                        <div class="w-11 h-11 ${isWindowOpen ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50' : 'bg-slate-800 text-gray-400 border-slate-700'} rounded-md flex items-center justify-center text-lg border shrink-0">
                             <i class="fas ${isWindowOpen ? 'fa-door-open' : 'fa-clock'}"></i>
                         </div>
                     </div>
@@ -129,51 +129,51 @@ export default {
             </div>
 
             <!-- Recent Activity Table -->
-            <div class="bg-cardbg rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-                <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 bg-opacity-50">
-                    <h3 class="text-base font-semibold text-white flex items-center gap-2">
-                        <i class="fas fa-history text-highlight"></i> Recent Live Attendance Logs
+            <div class="bg-cardbg rounded-lg border border-gray-700/80 overflow-hidden shadow-sm">
+                <div class="px-5 py-3.5 border-b border-gray-700/80 flex justify-between items-center bg-slate-900/60">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i class="fas fa-history text-blue-400"></i> Recent Classroom Attendance Logs
                     </h3>
-                    <a href="#attendance" class="text-xs text-highlight hover:underline flex items-center gap-1">
-                        View All Records <i class="fas fa-arrow-right"></i>
+                    <a href="#attendance" class="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition-colors">
+                        View Complete Register <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="text-gray-400 text-xs uppercase bg-cardbg border-b border-gray-700">
-                                <th class="py-3 px-5 font-medium">Date & Time</th>
-                                <th class="py-3 px-5 font-medium">Branch / Section</th>
-                                <th class="py-3 px-5 font-medium">Subject</th>
-                                <th class="py-3 px-5 font-medium">Student Name</th>
-                                <th class="py-3 px-5 font-medium">Roll No</th>
-                                <th class="py-3 px-5 font-medium">Status</th>
+                            <tr class="text-gray-400 text-[11px] uppercase bg-cardbg border-b border-gray-700/80 font-semibold tracking-wider">
+                                <th class="py-2.5 px-4 font-semibold">Date & Time</th>
+                                <th class="py-2.5 px-4 font-semibold">Branch & Section</th>
+                                <th class="py-2.5 px-4 font-semibold">Subject</th>
+                                <th class="py-2.5 px-4 font-semibold">Student Name</th>
+                                <th class="py-2.5 px-4 font-semibold">Roll Number</th>
+                                <th class="py-2.5 px-4 font-semibold">Status</th>
                             </tr>
                         </thead>
-                        <tbody class="text-xs divide-y divide-gray-700/50">
+                        <tbody class="text-xs divide-y divide-gray-700/40">
                             ${recent.length > 0 ? recent.map(r => `
-                                <tr class="hover:bg-gray-800 transition-colors">
-                                    <td class="py-3 px-5 text-gray-300 font-mono">
-                                        <span class="font-semibold text-white">${r.date}</span> <span class="text-gray-400">${r.time}</span>
+                                <tr class="hover:bg-slate-800/50 transition-colors">
+                                    <td class="py-2.5 px-4 text-gray-300 font-mono text-[11px]">
+                                        <span class="text-white">${r.date}</span> <span class="text-gray-400">${r.time}</span>
                                     </td>
-                                    <td class="py-3 px-5">
-                                        <div class="flex items-center gap-1">
-                                            ${r.branch_code ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-semibold">${r.branch_code}</span>` : ''}
-                                            ${r.section ? `<span class="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-[10px] font-bold">${r.section}</span>` : '<span class="text-gray-500">-</span>'}
+                                    <td class="py-2.5 px-4">
+                                        <div class="flex items-center gap-1.5">
+                                            ${r.branch_code ? `<span class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-[10px] font-semibold">${r.branch_code}</span>` : ''}
+                                            ${r.section ? `<span class="px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 border border-blue-700/50 font-mono text-[10px] font-bold">${r.section}</span>` : '<span class="text-gray-500">-</span>'}
                                         </div>
                                     </td>
-                                    <td class="py-3 px-5">
-                                        <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[11px] font-medium">${r.subject || 'General'}</span>
+                                    <td class="py-2.5 px-4">
+                                        <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium">${r.subject || 'General'}</span>
                                     </td>
-                                    <td class="py-3 px-5 text-white font-medium">${r.name || '-'}</td>
-                                    <td class="py-3 px-5 text-gray-300 font-mono">${r.roll_no}</td>
-                                    <td class="py-3 px-5">
+                                    <td class="py-2.5 px-4 text-white font-medium">${r.name || '-'}</td>
+                                    <td class="py-2.5 px-4 text-gray-300 font-mono text-[11px]">${r.roll_no}</td>
+                                    <td class="py-2.5 px-4">
                                         <span class="badge ${r.status === 'Present' ? 'badge-present' : 'badge-absent'}">${r.status || 'Present'}</span>
                                     </td>
                                 </tr>
                             `).join('') : `
                                 <tr>
-                                    <td colspan="6" class="py-8 text-center text-gray-500">No attendance activity recorded yet today.</td>
+                                    <td colspan="6" class="py-8 text-center text-gray-400 text-xs">No attendance entries recorded today.</td>
                                 </tr>
                             `}
                         </tbody>

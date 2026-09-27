@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Attendance System</title>
+    <title>IERT Prayagraj — Attendance Management System</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,10 +12,11 @@
             theme: {
                 extend: {
                     colors: {
-                        darkbg: '#1a1a2e',
-                        cardbg: '#16213e',
-                        accent: '#0f3460',
-                        highlight: '#e94560'
+                        darkbg: '#0b1324',
+                        cardbg: '#141d33',
+                        cardborder: '#1f2d4d',
+                        accent: '#1e3a8a',
+                        highlight: '#2563eb'
                     }
                 }
             }
@@ -36,11 +37,11 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full">
         <!-- Top header for mobile menu toggle -->
         <header class="md:hidden flex items-center justify-between p-4 bg-cardbg border-b border-gray-700">
-            <div class="flex items-center text-xl font-bold text-white">
-                <i class="fas fa-id-badge text-highlight mr-2"></i> SAS
+            <div class="flex items-center text-sm font-bold text-white tracking-wider">
+                <i class="fas fa-university text-highlight mr-2"></i> IERT ATTENDANCE
             </div>
             <button id="mobile-menu-btn" class="text-gray-300 hover:text-white focus:outline-none">
-                <i class="fas fa-bars text-2xl"></i>
+                <i class="fas fa-bars text-xl"></i>
             </button>
         </header>
 
@@ -48,7 +49,7 @@
         <div id="app" class="flex-1 overflow-y-auto p-4 md:p-8 bg-darkbg">
             <!-- Loading indicator initially -->
             <div class="flex items-center justify-center h-full">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-highlight"></div>
+                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-highlight"></div>
             </div>
         </div>
     </main>
@@ -57,6 +58,6 @@
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Application Scripts -->
-    <script type="module" src="js/app.js?v=1.2"></script>
+    <script type="module" src="js/app.js?v=1.3"></script>
 </body>
 </html>

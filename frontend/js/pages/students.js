@@ -24,26 +24,26 @@ export default {
 
             <!-- Stats Bar -->
             <div id="roster-stats-bar" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg">
+                <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-md bg-blue-900/30 text-blue-400 flex items-center justify-center text-lg border border-blue-800/40">
                         <i class="fas fa-users"></i>
                     </div>
                     <div>
                         <p class="text-xs text-gray-400 uppercase font-semibold">Total Roster</p>
-                        <p id="stat-total-roster" class="text-xl font-bold text-white">1,706</p>
+                        <p id="stat-total-roster" class="text-xl font-bold text-white font-mono">1,706</p>
                     </div>
                 </div>
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center text-lg">
+                <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-md bg-emerald-950/40 text-emerald-400 flex items-center justify-center text-lg border border-emerald-800/50">
                         <i class="fas fa-user-check"></i>
                     </div>
                     <div>
                         <p class="text-xs text-gray-400 uppercase font-semibold">Registered Biometrics</p>
-                        <p id="stat-total-registered" class="text-xl font-bold text-white">0</p>
+                        <p id="stat-total-registered" class="text-xl font-bold text-white font-mono">0</p>
                     </div>
                 </div>
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center text-lg">
+                <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-md bg-slate-800 text-slate-300 flex items-center justify-center text-lg border border-slate-700">
                         <i class="fas fa-code-branch"></i>
                     </div>
                     <div>
@@ -51,8 +51,8 @@ export default {
                         <p class="text-xl font-bold text-white">7 Branches (A–G)</p>
                     </div>
                 </div>
-                <div class="bg-cardbg rounded-xl border border-gray-700 p-4 shadow flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
+                <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 shadow-sm flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-md bg-blue-950/40 text-blue-400 flex items-center justify-center text-lg border border-blue-800/50">
                         <i class="fas fa-layer-group"></i>
                     </div>
                     <div>
@@ -63,13 +63,13 @@ export default {
             </div>
 
             <!-- Tab Buttons & Filters -->
-            <div class="bg-cardbg rounded-xl border border-gray-700 p-4 mb-6 shadow-md flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+            <div class="bg-cardbg rounded-lg border border-gray-700/80 p-4 mb-6 shadow-sm flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
                 <!-- Tabs -->
                 <div class="flex items-center gap-2 border-b md:border-b-0 border-gray-700 pb-3 md:pb-0">
-                    <button id="tab-registered" class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-highlight text-white flex items-center gap-2 shadow">
+                    <button id="tab-registered" class="px-4 py-2 rounded-md text-sm font-semibold transition-colors bg-highlight text-white flex items-center gap-2 shadow-sm">
                         <i class="fas fa-fingerprint"></i> Registered Biometrics
                     </button>
-                    <button id="tab-roster" class="px-4 py-2 rounded-lg text-sm font-semibold transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2">
+                    <button id="tab-roster" class="px-4 py-2 rounded-md text-sm font-semibold transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2 border border-gray-700">
                         <i class="fas fa-list-ol"></i> College Roster (1,706)
                     </button>
                 </div>
@@ -103,7 +103,7 @@ export default {
             </div>
 
             <!-- Table Container -->
-            <div class="bg-cardbg rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+            <div class="bg-cardbg rounded-lg border border-gray-700 overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse" id="students-table">
                         <thead>
@@ -125,7 +125,7 @@ export default {
 
             <!-- Edit Student Profile Modal -->
             <div id="edit-student-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-                <div class="bg-cardbg border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div class="bg-cardbg border border-gray-700 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
                     <div class="flex items-center justify-between border-b border-gray-700 pb-3">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <i class="fas fa-user-edit text-highlight"></i> Edit Student Profile
@@ -179,8 +179,8 @@ export default {
                         </div>
 
                         <div class="pt-2 flex justify-end gap-3">
-                            <button type="button" id="btn-cancel-edit-student" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
-                            <button type="submit" id="btn-save-edit-student" class="px-5 py-2 rounded-lg bg-highlight hover:bg-red-600 text-white text-sm font-semibold flex items-center gap-2">
+                            <button type="button" id="btn-cancel-edit-student" class="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium">Cancel</button>
+                            <button type="submit" id="btn-save-edit-student" class="px-5 py-2 rounded-md bg-highlight hover:bg-blue-700 text-white text-sm font-semibold flex items-center gap-2">
                                 <i class="fas fa-save"></i> Save Changes
                             </button>
                         </div>
@@ -291,10 +291,10 @@ export default {
 
             tbody.innerHTML = students.map((s, index) => {
                 const secBadge = s.section ? `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">${s.section}</span>` : '<span class="text-xs text-gray-500">-</span>';
-                const branchBadge = s.branch_code ? `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${s.branch_code}</span>` : '';
+                const branchBadge = s.branch_code ? `<span class="px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold">${s.branch_code}</span>` : '';
 
                 return `
-                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors group">
+                    <tr class="border-b border-gray-700/60 hover:bg-slate-800/50 transition-colors group">
                         <td class="py-4 px-6 text-gray-400 font-mono">${index + 1}</td>
                         <td class="py-4 px-6">
                             <div class="flex items-center gap-1.5">
@@ -305,7 +305,7 @@ export default {
                         </td>
                         <td class="py-4 px-6 font-medium text-white">
                             <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-sm font-bold text-white shadow">
+                                <div class="w-9 h-9 rounded-md bg-slate-700 border border-slate-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
                                     ${s.name ? s.name.charAt(0).toUpperCase() : '?'}
                                 </div>
                                 <div>
@@ -318,10 +318,10 @@ export default {
                         <td class="py-4 px-6 space-y-1">
                             <div>
                                 ${s.is_locked
-                                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30">
                                         <i class="fas fa-lock text-[10px]"></i> Locked
                                        </span>`
-                                    : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                                    : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
                                         <i class="fas fa-lock-open text-[10px]"></i> Unlocked
                                        </span>`
                                 }
@@ -338,24 +338,24 @@ export default {
                             </div>
                         </td>
                         <td class="py-4 px-6 text-right space-x-1.5">
-                            <button data-roll="${s.roll_no}" data-name="${s.name || ''}" data-branch="${s.branch_code || ''}" data-section="${s.section || ''}" data-year="${s.year || 1}" data-classroll="${s.class_roll_no || ''}" class="btn-edit-student text-green-400 hover:text-white hover:bg-green-600 px-2 py-1 border border-green-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Edit student profile">
+                            <button data-roll="${s.roll_no}" data-name="${s.name || ''}" data-branch="${s.branch_code || ''}" data-section="${s.section || ''}" data-year="${s.year || 1}" data-classroll="${s.class_roll_no || ''}" class="btn-edit-student text-green-400 hover:text-white hover:bg-green-600 px-2 py-1 border border-green-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Edit student profile">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
                             ${s.is_locked
-                                ? `<button data-roll="${s.roll_no}" class="btn-unlock-student text-amber-400 hover:text-white hover:bg-amber-600 px-2 py-1 border border-amber-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Allow student to update face photo">
+                                ? `<button data-roll="${s.roll_no}" class="btn-unlock-student text-amber-400 hover:text-white hover:bg-amber-600 px-2 py-1 border border-amber-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Allow student to update face photo">
                                     <i class="fas fa-key"></i> Reset Face
                                    </button>`
-                                : `<button data-roll="${s.roll_no}" class="btn-lock-student text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Lock face biometrics">
+                                : `<button data-roll="${s.roll_no}" class="btn-lock-student text-blue-400 hover:text-white hover:bg-blue-600 px-2 py-1 border border-blue-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Lock face biometrics">
                                     <i class="fas fa-lock"></i> Lock
                                    </button>`
                             }
-                            <button data-roll="${s.roll_no}" class="btn-reset-dev text-purple-400 hover:text-white hover:bg-purple-600 px-2 py-1 border border-purple-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1" title="Reset phone binding so student can login on new phone">
+                            <button data-roll="${s.roll_no}" class="btn-reset-dev text-slate-300 hover:text-white hover:bg-slate-700 px-2 py-1 border border-slate-600 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Reset phone binding so student can login on new phone">
                                 <i class="fas fa-sync-alt"></i> Reset Device
                             </button>
-                            <a href="#attendance?roll_no=${encodeURIComponent(s.roll_no)}" class="text-highlight hover:text-white px-2 py-1 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                            <a href="#attendance?roll_no=${encodeURIComponent(s.roll_no)}" class="text-highlight hover:text-white px-2 py-1 border border-highlight hover:bg-highlight rounded-md transition-colors text-xs inline-flex items-center gap-1">
                                 <i class="fas fa-calendar-alt"></i> Logs
                             </a>
-                            <button data-roll="${s.roll_no}" data-name="${s.name}" class="btn-delete-student text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                            <button data-roll="${s.roll_no}" data-name="${s.name}" class="btn-delete-student text-red-400 hover:text-white hover:bg-red-600 px-2 py-1 border border-red-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </td>
@@ -516,10 +516,10 @@ export default {
 
             tbody.innerHTML = students.map((s, index) => {
                 const secBadge = `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-mono font-semibold">${s.section}</span>`;
-                const branchBadge = `<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold">${s.branch_code}</span>`;
+                const branchBadge = `<span class="px-2 py-0.5 rounded bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold">${s.branch_code}</span>`;
 
                 return `
-                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                    <tr class="border-b border-gray-700/60 hover:bg-slate-800/50 transition-colors">
                         <td class="py-4 px-6 text-gray-400 font-mono">${index + 1}</td>
                         <td class="py-4 px-6">
                             <div class="flex items-center gap-1.5">
@@ -530,7 +530,7 @@ export default {
                         </td>
                         <td class="py-4 px-6 font-medium text-white">
                             <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+                                <div class="w-8 h-8 rounded-md bg-slate-700 border border-slate-600 flex items-center justify-center text-xs font-bold text-gray-300">
                                     ${s.name ? s.name.charAt(0).toUpperCase() : '?'}
                                 </div>
                                 <span class="text-sm font-semibold">${s.name}</span>
@@ -539,20 +539,20 @@ export default {
                         <td class="py-4 px-6 text-gray-300 font-mono font-medium">${s.primary_roll_no}</td>
                         <td class="py-4 px-6">
                             ${s.is_registered
-                                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
+                                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
                                     <i class="fas fa-check-circle text-xs"></i> Enrolled
                                    </span>`
-                                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
+                                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-400 border border-gray-600">
                                     <i class="fas fa-hourglass-start text-xs"></i> Pending Face
                                    </span>`
                             }
                         </td>
                         <td class="py-4 px-6 text-right">
                             ${s.is_registered
-                                ? `<a href="#attendance?roll_no=${encodeURIComponent(s.primary_roll_no)}" class="text-highlight hover:text-white px-2.5 py-1.5 border border-highlight hover:bg-highlight rounded-lg transition-colors text-xs inline-flex items-center gap-1">
+                                ? `<a href="#attendance?roll_no=${encodeURIComponent(s.primary_roll_no)}" class="text-highlight hover:text-white px-2.5 py-1.5 border border-highlight hover:bg-highlight rounded-md transition-colors text-xs inline-flex items-center gap-1">
                                     <i class="fas fa-calendar-alt"></i> Attendance
                                    </a>`
-                                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-gray-700/60 text-gray-400 border border-gray-600" title="Student registers face via mobile app">
+                                : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-700/60 text-gray-400 border border-gray-600" title="Student registers face via mobile app">
                                     <i class="fas fa-mobile-alt text-[10px]"></i> Mobile App
                                    </span>`
                             }

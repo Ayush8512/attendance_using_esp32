@@ -15,26 +15,29 @@ export function renderNavbar(currentPath) {
     
     <!-- Sidebar -->
     <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-30 w-64 bg-cardbg transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out border-r border-gray-700 flex flex-col h-full">
-        <div class="flex items-center justify-center h-20 border-b border-gray-700">
-            <h1 class="text-2xl font-bold text-white flex items-center gap-3">
-                <i class="fas fa-id-badge text-highlight"></i>
-                SAS
-            </h1>
+        <div class="flex items-center px-5 h-20 border-b border-gray-700/80 gap-3">
+            <div class="w-9 h-9 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
+                <i class="fas fa-university"></i>
+            </div>
+            <div class="leading-tight overflow-hidden">
+                <h1 class="text-sm font-bold text-white tracking-wide truncate">IERT PRAYAGRAJ</h1>
+                <p class="text-[11px] text-gray-400 font-mono">Attendance Portal</p>
+            </div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
     `;
 
     navItems.forEach(item => {
         const isActive = currentPath === item.path;
-        const baseClass = "flex items-center px-4 py-3 rounded-lg transition-colors";
+        const baseClass = "flex items-center px-3.5 py-2.5 rounded-md transition-colors text-sm font-medium";
         const activeClass = isActive 
-            ? "bg-accent text-white" 
-            : "text-gray-400 hover:bg-gray-700 hover:text-white";
+            ? "bg-blue-600 text-white shadow-sm" 
+            : "text-gray-300 hover:bg-slate-800 hover:text-white";
             
         navHtml += `
             <a href="${item.path}" class="${baseClass} ${activeClass}">
-                <i class="fas ${item.icon} w-6 text-center mr-3 ${isActive ? 'text-highlight' : ''}"></i>
-                <span class="font-medium">${item.label}</span>
+                <i class="fas ${item.icon} w-5 text-center mr-3 ${isActive ? 'text-white' : 'text-gray-400'}"></i>
+                <span>${item.label}</span>
             </a>
         `;
     });
