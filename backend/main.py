@@ -15,7 +15,7 @@ from database import init_db
 from config import REPORTS_DIR
 
 # Import routers
-from routers import admin, students, attendance, timetable, roster, auth
+from routers import admin, students, attendance, timetable, roster, auth, teachers
 from fastapi import Depends
 from security import get_api_key
 
@@ -51,11 +51,13 @@ async def health_check():
 
 # Include all modular routers
 app.include_router(auth.router)
+app.include_router(teachers.router)
 app.include_router(admin.router, dependencies=[Depends(get_api_key)])
 app.include_router(students.router, dependencies=[Depends(get_api_key)])
 app.include_router(attendance.router, dependencies=[Depends(get_api_key)])
 app.include_router(timetable.router, dependencies=[Depends(get_api_key)])
 app.include_router(roster.router, dependencies=[Depends(get_api_key)])
+
 
 # Serve the generated Excel reports
 @app.get("/reports/{filename}")

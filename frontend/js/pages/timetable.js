@@ -32,6 +32,9 @@ export default {
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button id="btn-bulk-upload-timetable" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg border border-blue-500 flex items-center gap-2 text-sm font-semibold shadow-sm transition-colors">
+                        <i class="fas fa-calendar-week"></i> Bulk Weekly Upload
+                    </button>
                     <button id="btn-refresh-timetable" class="px-4 py-2 bg-cardbg hover:bg-gray-700 text-white rounded-lg border border-gray-600 flex items-center gap-2 text-sm font-semibold transition-colors">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
@@ -476,6 +479,173 @@ export default {
             });
         };
 
+        // Bulk Upload Modal HTML
+        const modalDiv = document.createElement('div');
+        modalDiv.id = 'bulk-timetable-modal';
+        modalDiv.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden';
+        modalDiv.innerHTML = `
+            <div class="bg-cardbg border border-gray-700 rounded-xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+                <div class="flex items-center justify-between border-b border-gray-700 pb-4 mb-4 shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-calendar-week text-blue-500"></i> Bulk Upload Weekly Schedule
+                    </h3>
+                    <button id="close-bulk-modal-btn" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <p class="text-xs text-gray-400 mb-4 shrink-0">
+                    Upload a full week's timetable at once. Enter schedule entries below or paste JSON batch data. Duplicate time slots for the same section will be updated automatically.
+                </p>
+
+                <form id="bulk-timetable-form" class="flex-1 overflow-y-auto space-y-4 pr-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Teacher Email *</label>
+                            <input type="email" id="bulk-teacher-email" required placeholder="e.g. gupta@college.edu" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Target Section *</label>
+                            <input type="text" id="bulk-section" required placeholder="e.g. A1, B2" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-700 pt-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-xs font-semibold text-gray-300 uppercase">Weekly Class Slots</label>
+                            <button type="button" id="add-bulk-row-btn" class="text-xs bg-gray-800 hover:bg-gray-700 text-blue-400 border border-gray-600 px-2.5 py-1 rounded flex items-center gap-1">
+                                <i class="fas fa-plus"></i> Add Class Row
+                            </button>
+                        </div>
+
+                        <div id="bulk-rows-container" class="space-y-2">
+                            <!-- Dynamic class rows will be injected here -->
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-gray-700 flex justify-end gap-3 shrink-0">
+                        <button type="button" id="cancel-bulk-modal-btn" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white">Cancel</button>
+                        <button type="submit" id="btn-submit-bulk-timetable" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2">
+                            <i class="fas fa-cloud-upload-alt"></i> Upload Full Schedule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modalDiv);
+
+        // Add dynamic row builder helper
+        const rowsContainer = document.getElementById('bulk-rows-container');
+        function addBulkRow(day = "Monday", hour = 9, subject = "Mathematics", windowMins = 10) {
+            const rowId = 'row-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+            const rowDiv = document.createElement('div');
+            rowDiv.id = rowId;
+            rowDiv.className = 'grid grid-cols-12 gap-2 items-center bg-darkbg/60 p-2 rounded-lg border border-gray-700/60 text-xs';
+            rowDiv.innerHTML = `
+                <div class="col-span-3">
+                    <select class="bulk-row-day w-full bg-darkbg border border-gray-700 text-white rounded px-2 py-1 text-xs">
+                        <option value="Monday" ${day === 'Monday' ? 'selected' : ''}>Monday</option>
+                        <option value="Tuesday" ${day === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
+                        <option value="Wednesday" ${day === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
+                        <option value="Thursday" ${day === 'Thursday' ? 'selected' : ''}>Thursday</option>
+                        <option value="Friday" ${day === 'Friday' ? 'selected' : ''}>Friday</option>
+                        <option value="Saturday" ${day === 'Saturday' ? 'selected' : ''}>Saturday</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <input type="number" min="0" max="23" value="${hour}" class="bulk-row-hour w-full bg-darkbg border border-gray-700 text-white rounded px-2 py-1 text-xs text-center" placeholder="Hour (0-23)">
+                </div>
+                <div class="col-span-4">
+                    <input type="text" value="${subject}" class="bulk-row-subject w-full bg-darkbg border border-gray-700 text-white rounded px-2 py-1 text-xs" placeholder="Subject Name">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" min="1" max="120" value="${windowMins}" class="bulk-row-window w-full bg-darkbg border border-gray-700 text-white rounded px-2 py-1 text-xs text-center" title="Window Mins">
+                </div>
+                <div class="col-span-1 text-center">
+                    <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-red-400 hover:text-red-300">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            rowsContainer.appendChild(rowDiv);
+        }
+
+        // Initialize default 5 weekday rows for convenience
+        addBulkRow("Monday", 9, "Mathematics", 10);
+        addBulkRow("Tuesday", 10, "Physics", 10);
+        addBulkRow("Wednesday", 11, "Basic Electronics", 10);
+        addBulkRow("Thursday", 14, "Data Structures", 10);
+        addBulkRow("Friday", 9, "Project Work", 10);
+
+        document.getElementById('add-bulk-row-btn').addEventListener('click', () => {
+            addBulkRow("Monday", 9, "New Subject", 10);
+        });
+
+        // Bulk modal handlers
+        const bulkBtn = document.getElementById('btn-bulk-upload-timetable');
+        const bulkModal = document.getElementById('bulk-timetable-modal');
+        const closeBulkBtn = document.getElementById('close-bulk-modal-btn');
+        const cancelBulkBtn = document.getElementById('cancel-bulk-modal-btn');
+
+        if (bulkBtn) bulkBtn.addEventListener('click', () => bulkModal.classList.remove('hidden'));
+        if (closeBulkBtn) closeBulkBtn.addEventListener('click', () => bulkModal.classList.add('hidden'));
+        if (cancelBulkBtn) cancelBulkBtn.addEventListener('click', () => bulkModal.classList.add('hidden'));
+
+        // Bulk form submit handler
+        document.getElementById('bulk-timetable-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const teacherEmail = document.getElementById('bulk-teacher-email').value.trim();
+            const section = document.getElementById('bulk-section').value.trim().toUpperCase();
+
+            const rows = rowsContainer.querySelectorAll('[id^="row-"]');
+            if (rows.length === 0) {
+                showToast("Please add at least one class row to upload.", "error");
+                return;
+            }
+
+            const entries = [];
+            rows.forEach(r => {
+                const d = r.querySelector('.bulk-row-day').value;
+                const h = parseInt(r.querySelector('.bulk-row-hour').value, 10);
+                const subj = r.querySelector('.bulk-row-subject').value.trim();
+                const wm = parseInt(r.querySelector('.bulk-row-window').value, 10) || 10;
+                if (subj) {
+                    entries.push({
+                        day: d,
+                        hour: h,
+                        start_minute: 0,
+                        allowed_window_minutes: wm,
+                        subject: subj,
+                        teacher_email: teacherEmail,
+                        section: section,
+                        branch_code: section ? section[0] : "",
+                        year: section && section[1] && !isNaN(section[1]) ? parseInt(section[1], 10) : 0
+                    });
+                }
+            });
+
+            if (entries.length === 0) {
+                showToast("Subject name cannot be empty.", "error");
+                return;
+            }
+
+            const btn = document.getElementById('btn-submit-bulk-timetable');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Schedule...';
+
+            try {
+                const res = await api.batchAddTimetable({ entries });
+                showToast(res.message || `Uploaded ${entries.length} weekly classes successfully!`, "success");
+                bulkModal.classList.add('hidden');
+                await loadTimetable();
+            } catch (err) {
+                showToast(`Bulk upload failed: ${err.message}`, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload Full Schedule';
+            }
+        });
+
         // Event listeners
         document.getElementById('btn-refresh-timetable').addEventListener('click', loadTimetable);
         document.getElementById('filter-day').addEventListener('change', () => {
@@ -529,3 +699,4 @@ export default {
         await loadTimetable();
     }
 };
+

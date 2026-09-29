@@ -288,6 +288,130 @@ async def add_timetable_entry(
         "message": f"Class '{clean_subject}' for {branch_name or clean_branch or 'General'}{yr_label} (Section: {clean_section or 'All Sections'}) on {clean_day} at {hour:02d}:{start_minute:02d} saved successfully.",
     }
 
+from pydantic import BaseModel
+from typing import List, Optional
+
+class TimetableBatchItem(BaseModel):
+    day: str
+    hour: int
+    start_minute: Optional[int] = 0
+    end_hour: Optional[int] = None
+    end_minute: Optional[int] = None
+    allowed_window_minutes: Optional[int] = 10
+    subject: str
+    teacher_email: str
+    branch_code: Optional[str] = ""
+    year: Optional[int] = 0
+    section: Optional[str] = ""
+
+class TimetableBatchRequest(BaseModel):
+    entries: List[TimetableBatchItem]
+
+@router.post('/timetable/batch')
+async def add_bulk_timetable_entries(payload: TimetableBatchRequest):
+    """Bulk insert or update a complete weekly timetable schedule for faculty/sections."""
+    if not payload.entries:
+        raise HTTPException(status_code=400, detail="No schedule entries provided in batch payload.")
+
+    db = await get_db()
+    saved_count = 0
+    try:
+        for entry in payload.entries:
+            clean_day = entry.day.strip().capitalize()
+            clean_subject = entry.subject.strip()
+            clean_email = entry.teacher_email.strip()
+            clean_section = (entry.section or "").strip().upper()
+            if clean_section in ("ALL", "ALL SECTIONS", "ALL SECTION"):
+                clean_section = ""
+            clean_branch = (entry.branch_code or "").strip().upper()
+            if clean_section and not clean_branch and len(clean_section) >= 1:
+                clean_branch = clean_section[0]
+            final_year = entry.year if (entry.year and entry.year > 0) else (int(clean_section[1]) if len(clean_section) >= 2 and clean_section[1].isdigit() else 0)
+            branch_name = BRANCH_METADATA.get(clean_branch, {}).get("name", "")
+
+            await db.execute(
+                """
+                INSERT INTO timetable (day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email, section, branch_code, branch_name, year)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(day, hour, section) DO UPDATE SET
+                    start_minute = excluded.start_minute,
+                    end_hour = excluded.end_hour,
+                    end_minute = excluded.end_minute,
+                    allowed_window_minutes = excluded.allowed_window_minutes,
+                    subject = excluded.subject,
+                    teacher_email = excluded.teacher_email,
+                    section = excluded.section,
+                    branch_code = excluded.branch_code,
+                    branch_name = excluded.branch_name,
+                    year = excluded.year
+                """,
+                (clean_day, entry.hour, entry.start_minute or 0, entry.end_hour, entry.end_minute, entry.allowed_window_minutes or 10, clean_subject, clean_email, clean_section, clean_branch, branch_name, final_year)
+            )
+
+            TIMETABLE[(clean_day, entry.hour)] = {
+                "subject": clean_subject,
+                "teacher_email": clean_email,
+                "start_minute": entry.start_minute or 0,
+                "end_hour": entry.end_hour,
+                "end_minute": entry.end_minute,
+                "allowed_window_minutes": entry.allowed_window_minutes or 10,
+                "section": clean_section,
+                "branch_code": clean_branch,
+                "branch_name": branch_name,
+                "year": final_year,
+            }
+            saved_count += 1
+
+        await db.commit()
+    finally:
+        await db.close()
+
+    return {
+        "status": "success",
+        "message": f"Successfully uploaded and saved {saved_count} weekly timetable entries!",
+        "count": saved_count
+    }
+
+@router.get('/timetable/live-alerts')
+async def get_live_class_alerts(teacher_email: Optional[str] = None, section: Optional[str] = None):
+    """Real-time query for active class notifications & attendance window alerts."""
+    now = get_ist_now()
+    all_live = await get_all_live_classes_from_db(now)
+    
+    alerts = []
+    for cls in all_live:
+        # Filter by teacher email if specified
+        if teacher_email and teacher_email.strip():
+            if cls.get("teacher_email", "").lower() != teacher_email.strip().lower():
+                continue
+        # Filter by section if specified
+        if section and section.strip():
+            sec_cls = cls.get("section", "").upper()
+            if sec_cls and sec_cls not in ("ALL", "ALL SECTIONS") and sec_cls != section.strip().upper():
+                continue
+
+        win_status = cls.get("window_status", {})
+        if win_status.get("is_open"):
+            sec_str = f" (Section {cls['section']})" if cls.get('section') else ""
+            alerts.append({
+                "id": cls.get("id"),
+                "subject": cls.get("subject"),
+                "teacher_email": cls.get("teacher_email"),
+                "section": cls.get("section", "All"),
+                "timing_12h": cls.get("timing_12h"),
+                "window_end": win_status.get("window_end"),
+                "alert_title": f"🔔 Class Alert: {cls.get('subject')}{sec_str} is LIVE!",
+                "alert_message": f"Attendance window for {cls.get('subject')} is active now until {win_status.get('window_end')}.",
+                "present_count": cls.get("present_count", 0)
+            })
+
+    return {
+        "status": "success",
+        "has_active_alert": len(alerts) > 0,
+        "alerts": alerts,
+        "server_time": now.strftime("%I:%M:%S %p")
+    }
+
 @router.delete('/timetable/{item_id}')
 async def delete_timetable_entry(item_id: int):
     """Delete a class from the timetable."""
@@ -311,4 +435,5 @@ async def delete_timetable_entry(item_id: int):
         "status": "success",
         "message": f"Class '{subject}' deleted from timetable.",
     }
+
 

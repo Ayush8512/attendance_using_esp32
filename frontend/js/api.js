@@ -112,6 +112,12 @@ export const api = {
         method: "POST",
         body: formData
     }),
+    batchAddTimetable: (data) => fetchWithHandler("/timetable/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    }),
+    getLiveAlerts: (teacherEmail = '') => fetchWithHandler(`/timetable/live-alerts${teacherEmail ? `?teacher_email=${encodeURIComponent(teacherEmail)}` : ''}`),
     deleteTimetableEntry: (id) => fetchWithHandler(`/timetable/${id}`, {
         method: "DELETE"
     }),
@@ -121,5 +127,19 @@ export const api = {
     endClass: (formData) => fetchWithHandler("/admin/end-class", {
         method: "POST",
         body: formData
+    }),
+
+    // Auth & Teacher Management
+    getCurrentUser: () => fetchWithHandler("/api/auth/me"),
+    getTeachers: () => fetchWithHandler("/api/teachers"),
+    addTeacher: (data) => fetchWithHandler("/api/teachers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    }),
+    deleteTeacher: (id) => fetchWithHandler(`/api/teachers/${id}`, {
+        method: "DELETE"
     })
 };
+
+
