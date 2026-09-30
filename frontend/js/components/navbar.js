@@ -1,6 +1,18 @@
 export function renderNavbar(currentPath) {
     const container = document.getElementById('navbar-container');
     
+    // Retrieve logged in user from localStorage if available
+    let storedUser = null;
+    try {
+        const rawUser = localStorage.getItem('currentUser');
+        if (rawUser) storedUser = JSON.parse(rawUser);
+    } catch (_) {}
+
+    const userName = storedUser ? storedUser.name : 'Faculty User';
+    const userRole = storedUser ? (storedUser.role === 'admin' ? 'Administrator' : 'Teacher') : 'Teacher';
+    const userDept = storedUser ? (storedUser.department || 'Faculty') : 'Faculty';
+    const isAdmin = storedUser && storedUser.role === 'admin';
+
     const navItems = [
         { path: '#dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
         { path: '#timetable', icon: 'fa-clock', label: 'Timetable & Windows' },
@@ -8,6 +20,10 @@ export function renderNavbar(currentPath) {
         { path: '#attendance', icon: 'fa-calendar-check', label: 'Attendance Records' },
         { path: '#classroom', icon: 'fa-chalkboard-user', label: 'Classroom Live' }
     ];
+
+    if (isAdmin) {
+        navItems.push({ path: '#teachers', icon: 'fa-user-tie', label: 'Teacher Management' });
+    }
 
     let navHtml = `
     <!-- Mobile Sidebar overlay -->
@@ -24,6 +40,23 @@ export function renderNavbar(currentPath) {
                 <p class="text-[11px] text-gray-400 font-mono">Attendance Portal</p>
             </div>
         </div>
+
+        <!-- Logged In User Card -->
+        <div class="px-3 py-3 border-b border-gray-700/60 bg-gray-800/40">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-xs font-bold shrink-0">
+                    <i class="fas ${isAdmin ? 'fa-user-shield' : 'fa-user-tie'}"></i>
+                </div>
+                <div class="overflow-hidden leading-tight">
+                    <div class="text-xs font-semibold text-white truncate">${userName}</div>
+                    <div class="text-[10px] text-blue-400 font-medium flex items-center gap-1 mt-0.5">
+                        <span class="px-1.5 py-0.2 rounded ${isAdmin ? 'bg-purple-900/60 text-purple-300 border border-purple-700/50' : 'bg-blue-900/60 text-blue-300 border border-blue-700/50'}">${userRole}</span>
+                        <span class="text-gray-400 truncate">• ${userDept}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
     `;
 
@@ -61,7 +94,6 @@ export function renderNavbar(currentPath) {
         </button>
     </div>
     </aside>
-
     `;
 
     container.innerHTML = navHtml;

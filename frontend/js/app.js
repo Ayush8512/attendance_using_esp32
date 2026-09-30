@@ -4,14 +4,52 @@ import studentsPage from './pages/students.js';
 import attendancePage from './pages/attendance.js';
 import classroomPage from './pages/classroom.js?v=1.2';
 import timetablePage from './pages/timetable.js';
+import { renderTeachersPage } from './pages/teachers.js';
+import { api } from './api.js';
+import { showToast } from './components/toast.js';
 
 const routes = {
     '#dashboard': dashboardPage,
     '#timetable': timetablePage,
     '#students': studentsPage,
     '#attendance': attendancePage,
-    '#classroom': classroomPage
+    '#classroom': classroomPage,
+    '#teachers': { render: (container) => renderTeachersPage(container) }
 };
+
+let lastAlertedId = null;
+
+async function pollLiveClassAlerts() {
+    try {
+        let teacherEmail = '';
+        try {
+            const rawUser = localStorage.getItem('currentUser');
+            if (rawUser) {
+                const u = JSON.parse(rawUser);
+                if (u && u.email) teacherEmail = u.email;
+            }
+        } catch (_) {}
+
+        const res = await api.getLiveAlerts(teacherEmail);
+        if (res && res.has_active_alert && res.alerts && res.alerts.length > 0) {
+            const alert = res.alerts[0];
+            const alertKey = `${alert.subject}_${alert.window_end}`;
+            if (lastAlertedId !== alertKey) {
+                lastAlertedId = alertKey;
+                showToast(alert.alert_title + ' ' + alert.alert_message, 'info');
+            }
+        }
+    } catch (_) {}
+}
+
+async function syncUserProfile() {
+    try {
+        const res = await api.getCurrentUser();
+        if (res && res.user) {
+            localStorage.setItem('currentUser', JSON.stringify(res.user));
+        }
+    } catch (_) {}
+}
 
 function router() {
     let hash = window.location.hash || '#dashboard';
@@ -38,6 +76,7 @@ function router() {
     
     (async () => {
         try {
+            await syncUserProfile();
             await page.render(appDiv, query);
             renderNavbar(path);
         } catch (error) {
@@ -47,16 +86,25 @@ function router() {
     })();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await syncUserProfile();
     renderNavbar(window.location.hash || '#dashboard');
     window.addEventListener('hashchange', router);
     router();
+    
+    // Poll for live class alert notifications every 30 seconds
+    pollLiveClassAlerts();
+    setInterval(pollLiveClassAlerts, 30000);
 });
-
 
 window.handleLogout = async () => {
     if(confirm("Are you sure you want to log out?")) {
-        await fetch('/api/auth/logout', {method: 'POST'});
+        try {
+            await fetch('/api/auth/logout', {method: 'POST'});
+        } catch (_) {}
+        localStorage.removeItem('currentUser');
         window.location.href = '/login.html';
     }
 };
+
+

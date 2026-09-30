@@ -126,6 +126,48 @@ async def init_db() -> None:
             """
         )
 
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS teachers (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                name          TEXT NOT NULL,
+                email         TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                department    TEXT DEFAULT '',
+                role          TEXT NOT NULL DEFAULT 'teacher',
+                created_at    TEXT
+            )
+            """
+        )
+
+        # Seed default teacher accounts if teachers table is empty
+        cursor = await db.execute("SELECT COUNT(*) as count FROM teachers")
+        count_row = await cursor.fetchone()
+        if count_row and count_row["count"] == 0:
+            from security import hash_password
+            from datetime import datetime
+            now_iso = datetime.now().isoformat()
+
+            default_teachers = [
+                ("Admin User", "admin@college.edu", hash_password("admin123"), "Administration", "admin"),
+                ("Dr. Gupta", "gupta@college.edu", hash_password("teacher123"), "Mathematics", "teacher"),
+                ("Prof. Verma", "verma@college.edu", hash_password("teacher123"), "Physics", "teacher"),
+                ("Er. Sharma", "sharma@college.edu", hash_password("teacher123"), "Electronics", "teacher"),
+                ("Dr. Singh", "singh@college.edu", hash_password("teacher123"), "Computer Science", "teacher"),
+                ("Prof. Patel", "patel@college.edu", hash_password("teacher123"), "Chemistry", "teacher"),
+                ("Dr. Mehta", "mehta@college.edu", hash_password("teacher123"), "Humanities", "teacher"),
+                ("Er. Kumar", "kumar@college.edu", hash_password("teacher123"), "Computer Science", "teacher"),
+                ("Prof. Rao", "rao@college.edu", hash_password("teacher123"), "Electronics", "teacher"),
+            ]
+            await db.executemany(
+                """
+                INSERT INTO teachers (name, email, password_hash, department, role, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [(t[0], t[1], t[2], t[3], t[4], now_iso) for t in default_teachers],
+            )
+            logger.info("Seeded default teacher accounts into SQLite database.")
+
         # Indexes for fast lookups
         for idx in [
             "CREATE INDEX IF NOT EXISTS idx_attendance_roll_no ON attendance(roll_no)",
@@ -133,6 +175,7 @@ async def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_attendance_section ON attendance(section, branch_code)",
             "CREATE INDEX IF NOT EXISTS idx_students_device_id ON students(device_id)",
             "CREATE INDEX IF NOT EXISTS idx_roster_search ON college_roster(branch_code, section, year)",
+            "CREATE INDEX IF NOT EXISTS idx_teachers_email ON teachers(email)",
         ]:
             try:
                 await db.execute(idx)
@@ -144,3 +187,4 @@ async def init_db() -> None:
 
     finally:
         await db.close()
+
