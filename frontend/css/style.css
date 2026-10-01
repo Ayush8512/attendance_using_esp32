@@ -195,34 +195,58 @@ input[type="text"]:focus, input[type="date"]:focus, input[type="email"]:focus, i
     cursor: grabbing;
 }
 
-/* Live Ticker Stream Bar */
-@keyframes tickerMove {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-50%);
-    }
+/* Live Radar Sonar Sweep Animation */
+@keyframes radarSweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
-.ticker-wrap {
-    overflow: hidden;
-    white-space: nowrap;
+.radar-sweep {
+    animation: radarSweep 4s linear infinite;
+    transform-origin: center center;
 }
 
-.ticker-content {
-    display: inline-block;
-    white-space: nowrap;
-    animation: tickerMove 25s linear infinite;
+/* Gradient Text Shimmer */
+.text-gradient-antigravity {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #db2777 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.ticker-content:hover {
-    animation-play-state: paused;
+.text-gradient-cyan-blue {
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.badge-pending {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #d97706;
-    border-color: rgba(245, 158, 11, 0.3);
+.text-gradient-emerald {
+    background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* High-End Glass Panel with Subtle Gradient Border */
+.glass-panel-ultra {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04), 0 0 1px rgba(15, 23, 42, 0.06);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-ultra:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 20px 35px -10px rgba(99, 102, 241, 0.12), 0 0 20px rgba(236, 72, 153, 0.08);
+}
+
+/* Pulse Glow Effect */
+@keyframes neonPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.2); }
+    50% { box-shadow: 0 0 22px rgba(139, 92, 246, 0.4); }
+}
+
+.neon-pulse-box {
+    animation: neonPulse 3s infinite ease-in-out;
 }
 
