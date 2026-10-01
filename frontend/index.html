@@ -29,12 +29,20 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-darkbg text-gray-200 font-sans antialiased h-screen flex overflow-hidden selection:bg-highlight selection:text-white">
+<body class="bg-darkbg text-gray-200 font-sans antialiased h-screen flex overflow-hidden selection:bg-highlight selection:text-white relative">
+    <!-- Ambient 3D Neon Glow Blobs -->
+    <div class="glow-blob glow-blob-1"></div>
+    <div class="glow-blob glow-blob-2"></div>
+
+    <!-- Interactive 3D Particles Canvas -->
+    <canvas id="bg-particles-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+
     <!-- Navbar/Sidebar Container -->
-    <div id="navbar-container" class="z-20"></div>
+    <div id="navbar-container" class="z-20 relative"></div>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full z-10">
+
         <!-- Top header for mobile menu toggle -->
         <header class="md:hidden flex items-center justify-between p-4 bg-cardbg border-b border-gray-700">
             <div class="flex items-center text-sm font-bold text-white tracking-wider">
