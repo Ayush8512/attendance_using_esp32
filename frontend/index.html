@@ -29,13 +29,13 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-darkbg text-gray-200 font-sans antialiased h-screen flex overflow-hidden selection:bg-highlight selection:text-white relative">
+<body class="bg-white text-slate-900 font-sans antialiased h-screen flex overflow-hidden selection:bg-blue-600 selection:text-white relative">
     <!-- Ambient 3D Neon Glow Blobs -->
     <div class="glow-blob glow-blob-1"></div>
     <div class="glow-blob glow-blob-2"></div>
 
     <!-- Interactive 3D Particles Canvas -->
-    <canvas id="bg-particles-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
+    <canvas id="bg-particles-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-70"></canvas>
 
     <!-- Navbar/Sidebar Container -->
     <div id="navbar-container" class="z-20 relative"></div>
@@ -44,20 +44,20 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full z-10">
 
         <!-- Top header for mobile menu toggle -->
-        <header class="md:hidden flex items-center justify-between p-4 bg-cardbg border-b border-gray-700">
-            <div class="flex items-center text-sm font-bold text-white tracking-wider">
-                <i class="fas fa-university text-highlight mr-2"></i> IERT ATTENDANCE
+        <header class="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200">
+            <div class="flex items-center text-sm font-bold text-slate-900 tracking-wider">
+                <i class="fas fa-university text-blue-600 mr-2"></i> IERT ATTENDANCE
             </div>
-            <button id="mobile-menu-btn" class="text-gray-300 hover:text-white focus:outline-none">
+            <button id="mobile-menu-btn" class="text-slate-600 hover:text-slate-900 focus:outline-none">
                 <i class="fas fa-bars text-xl"></i>
             </button>
         </header>
 
         <!-- Dynamic Page Content -->
-        <div id="app" class="flex-1 overflow-y-auto p-4 md:p-8 bg-darkbg">
+        <div id="app" class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50/50">
             <!-- Loading indicator initially -->
             <div class="flex items-center justify-center h-full">
-                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-highlight"></div>
+                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600"></div>
             </div>
         </div>
     </main>

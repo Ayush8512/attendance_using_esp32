@@ -2,20 +2,20 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Light Theme */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #0b1324;
+    background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-    background: #1e3a8a;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
+    background: #94a3b8;
 }
 
 /* Card hover effects */
@@ -24,7 +24,7 @@ body {
 }
 .hover-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08);
 }
 
 /* Toast Animations */
@@ -55,34 +55,22 @@ body {
     animation: fadeOut 0.3s ease-out forwards;
 }
 
-/* Input styling overrides */
+/* Input styling overrides - Light Theme */
 input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="password"], select {
-    background-color: #0b1324;
-    color: white;
-    border: 1px solid #334155;
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
 }
 input[type="text"]:focus, input[type="date"]:focus, input[type="email"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus {
-    border-color: #2563eb;
+    border-color: #3b82f6;
     outline: none;
-    box-shadow: 0 0 0 1px #2563eb;
-}
-input[type="file"]::file-selector-button {
-    background-color: #1e3a8a;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-input[type="file"]::file-selector-button:hover {
-    background-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
 
-/* Status Badges - Clean Rectangular Enterprise Badges (No pill shapes) */
+/* Status Badges */
 .badge {
-    padding: 0.2rem 0.55rem;
-    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
     font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -93,21 +81,21 @@ input[type="file"]::file-selector-button:hover {
     border: 1px solid transparent;
 }
 .badge-present {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #34d399;
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #059669;
     border-color: rgba(16, 185, 129, 0.3);
 }
 .badge-absent {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #f87171;
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
     border-color: rgba(239, 68, 68, 0.3);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   Antigravity 3D Glassmorphism & Neon Parallax UI Styles
+   Google Antigravity White Theme Glassmorphism & Neon Parallax UI Styles
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Floating Ambient Glow Blobs */
+/* Floating Ambient Glow Blobs - Light Antigravity Theme */
 @keyframes floatGlow {
     0%, 100% {
         transform: translate(0, 0) scale(1);
@@ -123,49 +111,49 @@ input[type="file"]::file-selector-button:hover {
 .glow-blob {
     position: fixed;
     border-radius: 50%;
-    filter: blur(100px);
-    opacity: 0.25;
+    filter: blur(120px);
+    opacity: 0.22;
     pointer-events: none;
     z-index: 0;
     animation: floatGlow 15s ease-in-out infinite;
 }
 
 .glow-blob-1 {
-    top: 10%;
-    left: 15%;
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, #00f2fe 0%, #4facfe 100%);
+    top: 5%;
+    left: 10%;
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, #3b82f6 0%, #8b5cf6 100%);
 }
 
 .glow-blob-2 {
-    bottom: 15%;
-    right: 15%;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, #7928ca 0%, #ff0080 100%);
+    bottom: 10%;
+    right: 10%;
+    width: 480px;
+    height: 480px;
+    background: radial-gradient(circle, #ec4899 0%, #06b6d4 100%);
     animation-delay: -7s;
 }
 
-/* Glassmorphism Panel */
+/* Google Antigravity White Glass Panel */
 .glass-panel {
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 0 1px rgba(15, 23, 42, 0.05);
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-/* Dynamic Neon Border Glow on Hover */
+/* Dynamic Soft Blue/Violet Border Glow on Hover */
 .glass-panel-glow {
     position: relative;
     overflow: hidden;
 }
 
 .glass-panel-glow:hover {
-    border-color: rgba(0, 242, 254, 0.5);
-    box-shadow: 0 10px 30px -5px rgba(0, 242, 254, 0.25), 0 0 15px rgba(0, 242, 254, 0.15);
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.15), 0 0 15px rgba(139, 92, 246, 0.1);
 }
 
 /* 3D Perspective Card Tilt Container */
@@ -192,12 +180,12 @@ input[type="file"]::file-selector-button:hover {
 .draggable-widget.dragging {
     opacity: 0.4;
     transform: scale(0.98);
-    border: 2px dashed #00f2fe !important;
+    border: 2px dashed #3b82f6 !important;
 }
 
 .draggable-widget.drag-over {
-    border: 2px solid #00f2fe !important;
-    box-shadow: 0 0 25px rgba(0, 242, 254, 0.4) !important;
+    border: 2px solid #3b82f6 !important;
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.25) !important;
 }
 
 .drag-handle {
@@ -234,6 +222,7 @@ input[type="file"]::file-selector-button:hover {
 
 .badge-pending {
     background-color: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
+    color: #d97706;
     border-color: rgba(245, 158, 11, 0.3);
 }
+
