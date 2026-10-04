@@ -93,6 +93,35 @@ export async function renderTeachersPage(container) {
                 </form>
             </div>
         </div>
+
+        <!-- Reset Password Modal -->
+        <div id="reset-teacher-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+            <div class="bg-cardbg border border-gray-700 rounded-xl max-w-md w-full p-6 shadow-2xl relative">
+                <div class="flex items-center justify-between border-b border-gray-700 pb-4 mb-4">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-key text-amber-500"></i> Reset Teacher Password
+                    </h3>
+                    <button id="close-reset-modal-btn" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                <form id="reset-teacher-form" class="space-y-4">
+                    <input type="hidden" id="reset-teacher-id">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">Teacher Name</label>
+                        <input type="text" id="reset-teacher-name-display" disabled class="w-full bg-darkbg/50 border border-gray-700 rounded-lg px-3.5 py-2 text-sm text-gray-400 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase mb-1">New Password</label>
+                        <input type="password" id="reset-teacher-new-password" required minlength="4" placeholder="Enter new password (min 4 chars)" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3.5 py-2 text-sm text-gray-200 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div class="pt-4 border-t border-gray-700 flex justify-end gap-3">
+                        <button type="button" id="cancel-reset-modal-btn" class="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white">Cancel</button>
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-medium px-5 py-2 rounded-lg text-sm shadow-sm transition-colors">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     `;
 
     let allTeachers = [];
@@ -100,6 +129,7 @@ export async function renderTeachersPage(container) {
     const searchInput = document.getElementById('teacher-search-input');
     const countBadge = document.getElementById('teacher-count-badge');
     const modal = document.getElementById('add-teacher-modal');
+    const resetModal = document.getElementById('reset-teacher-modal');
 
     async function loadTeachers() {
         try {
@@ -150,6 +180,9 @@ export async function renderTeachersPage(container) {
                     <td class="py-3.5 px-4">${roleBadge}</td>
                     <td class="py-3.5 px-4 text-right">
                         ${t.email === 'admin@college.edu' ? '<span class="text-xs text-gray-500 italic">Protected</span>' : `
+                            <button data-id="${t.id}" data-name="${t.name}" class="reset-pwd-btn text-amber-400 hover:text-amber-300 p-1.5 rounded hover:bg-amber-900/30 transition-colors mr-1" title="Reset Password">
+                                <i class="fas fa-key"></i>
+                            </button>
                             <button data-id="${t.id}" data-name="${t.name}" class="delete-teacher-btn text-red-400 hover:text-red-300 p-1.5 rounded hover:bg-red-900/30 transition-colors" title="Delete Account">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
@@ -158,6 +191,18 @@ export async function renderTeachersPage(container) {
                 </tr>
             `;
         }).join('');
+
+        // Attach reset password listeners
+        tableBody.querySelectorAll('.reset-pwd-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const name = btn.getAttribute('data-name');
+                document.getElementById('reset-teacher-id').value = id;
+                document.getElementById('reset-teacher-name-display').value = name;
+                document.getElementById('reset-teacher-new-password').value = '';
+                resetModal.classList.remove('hidden');
+            });
+        });
 
         // Attach delete listeners
         tableBody.querySelectorAll('.delete-teacher-btn').forEach(btn => {
@@ -186,12 +231,16 @@ export async function renderTeachersPage(container) {
         renderTable(filtered);
     });
 
-    // Modal controls
+    // Add Teacher Modal controls
     document.getElementById('add-teacher-btn').addEventListener('click', () => modal.classList.remove('hidden'));
     document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
     document.getElementById('cancel-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
 
-    // Submit form
+    // Reset Password Modal controls
+    document.getElementById('close-reset-modal-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
+    document.getElementById('cancel-reset-modal-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
+
+    // Submit Add Teacher form
     document.getElementById('add-teacher-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
@@ -209,6 +258,22 @@ export async function renderTeachersPage(container) {
             loadTeachers();
         } catch (err) {
             showToast(`Error adding teacher: ${err.message}`, 'error');
+        }
+    });
+
+    // Submit Reset Password form
+    document.getElementById('reset-teacher-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('reset-teacher-id').value;
+        const name = document.getElementById('reset-teacher-name-display').value;
+        const newPassword = document.getElementById('reset-teacher-new-password').value;
+
+        try {
+            await api.resetTeacherPassword(id, newPassword);
+            showToast(`Password for '${name}' reset successfully`, 'success');
+            resetModal.classList.add('hidden');
+        } catch (err) {
+            showToast(`Error resetting password: ${err.message}`, 'error');
         }
     });
 
