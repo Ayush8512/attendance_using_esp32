@@ -112,12 +112,16 @@ export const api = {
         method: "POST",
         body: formData
     }),
+    uploadTimetableFile: (formData) => fetchWithHandler("/timetable/upload-file", {
+        method: "POST",
+        body: formData
+    }),
     batchAddTimetable: (data) => fetchWithHandler("/timetable/batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
     }),
-    getLiveAlerts: (teacherEmail = '') => fetchWithHandler(`/timetable/live-alerts${teacherEmail ? `?teacher_email=${encodeURIComponent(teacherEmail)}` : ''}`),
+    getLiveAlerts: (teacherEmail = '', section = '') => fetchWithHandler(`/timetable/live-alerts?${teacherEmail ? `teacher_email=${encodeURIComponent(teacherEmail)}&` : ''}${section ? `section=${encodeURIComponent(section)}` : ''}`),
     deleteTimetableEntry: (id) => fetchWithHandler(`/timetable/${id}`, {
         method: "DELETE"
     }),
