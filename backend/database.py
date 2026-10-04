@@ -140,6 +140,19 @@ async def init_db() -> None:
             """
         )
 
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS password_otps (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                email       TEXT NOT NULL,
+                otp         TEXT NOT NULL,
+                expires_at  TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                used        INTEGER DEFAULT 0
+            )
+            """
+        )
+
         # Seed default teacher accounts if teachers table is empty
         cursor = await db.execute("SELECT COUNT(*) as count FROM teachers")
         count_row = await cursor.fetchone()
@@ -176,6 +189,7 @@ async def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_students_device_id ON students(device_id)",
             "CREATE INDEX IF NOT EXISTS idx_roster_search ON college_roster(branch_code, section, year)",
             "CREATE INDEX IF NOT EXISTS idx_teachers_email ON teachers(email)",
+            "CREATE INDEX IF NOT EXISTS idx_otps_email ON password_otps(email)",
         ]:
             try:
                 await db.execute(idx)

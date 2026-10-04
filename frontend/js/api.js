@@ -131,10 +131,20 @@ export const api = {
 
     // Auth & Teacher Management
     getCurrentUser: () => fetchWithHandler("/api/auth/me"),
-    forgotPassword: (email, new_password) => fetchWithHandler("/api/auth/forgot-password", {
+    sendOTP: (email) => fetchWithHandler("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, new_password })
+        body: JSON.stringify({ email })
+    }),
+    verifyOTP: (email, otp, new_password) => fetchWithHandler("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, new_password })
+    }),
+    forgotPassword: (email, new_password, otp = null) => fetchWithHandler("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, new_password, otp })
     }),
     getTeachers: () => fetchWithHandler("/api/teachers"),
     addTeacher: (data) => fetchWithHandler("/api/teachers", {

@@ -42,6 +42,13 @@
             padding: 0.75rem;
             margin-top: 1.25rem;
         }
+        .otp-input {
+            letter-spacing: 4px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -77,32 +84,53 @@
         </div>
     </div>
 
-    <!-- Forgot Password Modal -->
+    <!-- Email OTP Forgot Password Modal -->
     <div class="modal fade" id="forgotModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content bg-dark text-light border-secondary">
                 <div class="modal-header border-secondary">
-                    <h5 class="modal-title text-white fw-bold">Reset Password</h5>
+                    <h5 class="modal-title text-white fw-bold">📧 Email OTP Password Reset</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form id="forgotForm">
-                    <div class="modal-body">
-                        <p class="small text-secondary mb-3">Enter your registered faculty email address and your new desired password.</p>
+                <div class="modal-body">
+                    <!-- Step 1: Request OTP -->
+                    <div id="otpStep1">
+                        <p class="small text-secondary mb-3">Enter your registered faculty email address. We will send a 6-digit OTP code to verify your identity.</p>
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Registered Email</label>
+                            <label class="form-label small fw-semibold">Registered Email Address</label>
                             <input type="email" id="forgotEmail" class="form-control bg-dark text-white border-secondary" required placeholder="e.g. gupta@college.edu">
+                        </div>
+                        <button type="button" id="sendOtpBtn" class="btn btn-info w-100 fw-bold btn-sm py-2">
+                            Send OTP Code
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Verify OTP & New Password -->
+                    <div id="otpStep2" style="display: none;">
+                        <div class="alert alert-info py-2 small mb-3">
+                            An OTP code was sent to <strong id="sentEmailDisplay"></strong>. Valid for 10 minutes.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">6-Digit OTP Code</label>
+                            <input type="text" id="otpCode" maxlength="6" class="form-control bg-dark text-white border-secondary otp-input" placeholder="123456">
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">New Password</label>
-                            <input type="password" id="forgotNewPassword" class="form-control bg-dark text-white border-secondary" required minlength="4" placeholder="Minimum 4 characters">
+                            <input type="password" id="forgotNewPassword" class="form-control bg-dark text-white border-secondary" minlength="4" placeholder="Minimum 4 characters">
                         </div>
-                        <div id="forgotMsg" class="small mt-2 text-center" style="display: none;"></div>
+                        <button type="button" id="verifyResetBtn" class="btn btn-warning w-100 fw-bold btn-sm py-2 mb-2">
+                            Verify OTP & Reset Password
+                        </button>
+                        <div class="text-center">
+                            <button type="button" id="resendBtn" class="btn btn-link btn-sm text-secondary p-0">Didn't receive code? Resend OTP</button>
+                        </div>
                     </div>
-                    <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" id="forgotSubmitBtn" class="btn btn-warning btn-sm fw-bold">Reset Password</button>
-                    </div>
-                </form>
+
+                    <div id="forgotMsg" class="small mt-3 text-center" style="display: none;"></div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -110,54 +138,113 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const forgotModal = new bootstrap.Modal(document.getElementById('forgotModal'));
+        const otpStep1 = document.getElementById('otpStep1');
+        const otpStep2 = document.getElementById('otpStep2');
+        const forgotMsg = document.getElementById('forgotMsg');
+
         document.getElementById('forgotPasswordBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            document.getElementById('forgotMsg').style.display = 'none';
-            document.getElementById('forgotForm').reset();
+            forgotMsg.style.display = 'none';
+            otpStep1.style.display = 'block';
+            otpStep2.style.display = 'none';
+            document.getElementById('forgotEmail').value = '';
+            document.getElementById('otpCode').value = '';
+            document.getElementById('forgotNewPassword').value = '';
             forgotModal.show();
         });
 
-        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('forgotSubmitBtn');
-            const msgDiv = document.getElementById('forgotMsg');
+        // Step 1: Send OTP handler
+        async function handleSendOTP() {
             const email = document.getElementById('forgotEmail').value.trim();
-            const newPassword = document.getElementById('forgotNewPassword').value.trim();
+            const btn = document.getElementById('sendOtpBtn');
+
+            if (!email) {
+                showMsg('Please enter your email address.', 'danger');
+                return;
+            }
 
             btn.disabled = true;
-            btn.innerText = 'Resetting...';
-            msgDiv.style.display = 'none';
+            btn.innerText = 'Sending OTP...';
+            forgotMsg.style.display = 'none';
 
             try {
-                const response = await fetch('/api/auth/forgot-password', {
+                const res = await fetch('/api/auth/send-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, new_password: newPassword })
+                    body: JSON.stringify({ email })
                 });
 
-                const data = await response.json();
-                if (response.ok && data.status === 'success') {
-                    msgDiv.className = 'small mt-2 text-center text-success';
-                    msgDiv.innerText = data.message || 'Password reset successful! You can now log in.';
-                    msgDiv.style.display = 'block';
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    document.getElementById('sentEmailDisplay').innerText = email;
+                    otpStep1.style.display = 'none';
+                    otpStep2.style.display = 'block';
+                    showMsg(data.message || 'OTP sent successfully! Please check your email.', 'success');
+                } else {
+                    showMsg(data.detail || data.message || 'Failed to send OTP.', 'danger');
+                }
+            } catch (err) {
+                showMsg('Network error. Please try again.', 'danger');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send OTP Code';
+            }
+        }
+
+        document.getElementById('sendOtpBtn').addEventListener('click', handleSendOTP);
+        document.getElementById('resendBtn').addEventListener('click', handleSendOTP);
+
+        // Step 2: Verify OTP & Reset Password
+        document.getElementById('verifyResetBtn').addEventListener('click', async () => {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const otp = document.getElementById('otpCode').value.trim();
+            const newPassword = document.getElementById('forgotNewPassword').value.trim();
+            const btn = document.getElementById('verifyResetBtn');
+
+            if (!otp || otp.length !== 6) {
+                showMsg('Please enter a valid 6-digit OTP code.', 'danger');
+                return;
+            }
+            if (!newPassword || newPassword.length < 4) {
+                showMsg('New password must be at least 4 characters long.', 'danger');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = 'Verifying & Updating...';
+            forgotMsg.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, otp, new_password: newPassword })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    showMsg(data.message || 'Password reset successful! You can now log in.', 'success');
                     setTimeout(() => {
                         forgotModal.hide();
                     }, 2000);
                 } else {
-                    msgDiv.className = 'small mt-2 text-center text-danger';
-                    msgDiv.innerText = data.detail || data.message || 'Failed to reset password.';
-                    msgDiv.style.display = 'block';
+                    showMsg(data.detail || data.message || 'Invalid or expired OTP code.', 'danger');
                 }
             } catch (err) {
-                msgDiv.className = 'small mt-2 text-center text-danger';
-                msgDiv.innerText = 'Network error. Please try again.';
-                msgDiv.style.display = 'block';
+                showMsg('Network error. Please try again.', 'danger');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Reset Password';
+                btn.innerText = 'Verify OTP & Reset Password';
             }
         });
 
+        function showMsg(text, type) {
+            forgotMsg.className = `small mt-3 text-center text-${type}`;
+            forgotMsg.innerText = text;
+            forgotMsg.style.display = 'block';
+        }
+
+        // Login Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
