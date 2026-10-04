@@ -81,6 +81,30 @@ async def create_teacher(payload: TeacherCreate):
     finally:
         await db.close()
 
+class PasswordResetPayload(BaseModel):
+    new_password: str
+
+@router.put("/{teacher_id}/reset-password")
+async def admin_reset_teacher_password(teacher_id: int, payload: PasswordResetPayload):
+    """Admin reset teacher password directly."""
+    new_pwd = payload.new_password.strip()
+    if len(new_pwd) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT id, name FROM teachers WHERE id = ?", (teacher_id,))
+        teacher = await cur.fetchone()
+        if not teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found.")
+
+        hashed = hash_password(new_pwd)
+        await db.execute("UPDATE teachers SET password_hash = ? WHERE id = ?", (hashed, teacher_id))
+        await db.commit()
+        return {"status": "success", "message": f"Password for '{teacher['name']}' reset successfully."}
+    finally:
+        await db.close()
+
 @router.delete("/{teacher_id}")
 async def delete_teacher(teacher_id: int):
     """Delete a teacher account by ID."""

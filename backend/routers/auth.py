@@ -106,6 +106,46 @@ async def get_current_user_profile(request: Request):
 
     return {"status": "unauthenticated", "user": None}
 
+class ForgotPasswordData(BaseModel):
+    email: str
+    new_password: str
+
+@router.post('/api/auth/forgot-password')
+async def forgot_password(data: ForgotPasswordData):
+    email_input = data.email.strip().lower()
+    new_pwd = data.new_password.strip()
+
+    if not email_input or not new_pwd:
+        raise HTTPException(status_code=400, detail="Email and new password are required.")
+
+    if len(new_pwd) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters long.")
+
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT id, name FROM teachers WHERE LOWER(email) = LOWER(?)",
+            (email_input,)
+        )
+        teacher = await cursor.fetchone()
+        if not teacher:
+            raise HTTPException(status_code=404, detail=f"No faculty account found with email '{email_input}'.")
+
+        from security import hash_password
+        hashed = hash_password(new_pwd)
+        await db.execute(
+            "UPDATE teachers SET password_hash = ? WHERE id = ?",
+            (hashed, teacher["id"])
+        )
+        await db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Password reset successful for {teacher['name']}. You can now log in."
+        }
+    finally:
+        await db.close()
+
 @router.post('/api/auth/logout')
 async def logout(response: Response):
     response.delete_cookie("admin_session")

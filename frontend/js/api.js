@@ -131,11 +131,21 @@ export const api = {
 
     // Auth & Teacher Management
     getCurrentUser: () => fetchWithHandler("/api/auth/me"),
+    forgotPassword: (email, new_password) => fetchWithHandler("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, new_password })
+    }),
     getTeachers: () => fetchWithHandler("/api/teachers"),
     addTeacher: (data) => fetchWithHandler("/api/teachers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
+    }),
+    resetTeacherPassword: (id, new_password) => fetchWithHandler(`/api/teachers/${id}/reset-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_password })
     }),
     deleteTeacher: (id) => fetchWithHandler(`/api/teachers/${id}`, {
         method: "DELETE"
