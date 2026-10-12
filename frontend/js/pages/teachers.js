@@ -162,13 +162,13 @@ export async function renderTeachersPage(container) {
         tableBody.innerHTML = list.map(t => {
             const isAdmin = t.role === 'admin';
             const roleBadge = isAdmin
-                ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-900/60 text-purple-300 border border-purple-700/50">Admin</span>`
-                : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-900/60 text-blue-300 border border-blue-700/50">Teacher</span>`;
+                ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-200 border border-slate-700">Admin</span>`
+                : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-900/40 text-blue-300 border border-blue-700/50">Teacher</span>`;
 
             return `
                 <tr class="hover:bg-gray-800/40 transition-colors">
                     <td class="py-3.5 px-4 font-medium text-white flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full ${isAdmin ? 'bg-purple-600/20 text-purple-400' : 'bg-blue-600/20 text-blue-400'} flex items-center justify-center font-bold text-xs shrink-0">
+                        <div class="w-8 h-8 rounded-full ${isAdmin ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-blue-900/30 text-blue-400 border border-blue-800/40'} flex items-center justify-center font-bold text-xs shrink-0">
                             <i class="fas ${isAdmin ? 'fa-user-shield' : 'fa-user-tie'}"></i>
                         </div>
                         <div>
