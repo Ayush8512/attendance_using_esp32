@@ -11,8 +11,10 @@ async def get_db() -> aiosqlite.Connection:
     db = await aiosqlite.connect(DATABASE_PATH, timeout=60.0)
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA busy_timeout = 60000;")
-    await db.execute("PRAGMA journal_mode = WAL;")
     await db.execute("PRAGMA synchronous = NORMAL;")
+    await db.execute("PRAGMA cache_size = -64000;")
+    await db.execute("PRAGMA temp_store = MEMORY;")
+    await db.execute("PRAGMA mmap_size = 268435456;")
     return db
 
 
@@ -21,6 +23,11 @@ async def init_db() -> None:
     db = await get_db()
     try:
         await db.execute("PRAGMA journal_mode=WAL")
+        # Concurrency and Performance Indexes
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_teachers_email_nocase ON teachers(email COLLATE NOCASE);")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_date_subject ON attendance(date, subject);")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_roll_date ON attendance(roll_no, date);")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_students_roll_nocase ON students(roll_no COLLATE NOCASE);")
 
         await db.execute(
             """

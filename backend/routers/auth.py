@@ -24,7 +24,7 @@ async def login(data: LoginData, response: Response):
     db = await get_db()
     try:
         cursor = await db.execute(
-            "SELECT id, name, email, password_hash, department, role FROM teachers WHERE LOWER(email) = LOWER(?) OR LOWER(name) = LOWER(?)",
+            "SELECT id, name, email, password_hash, department, role FROM teachers WHERE email = ? COLLATE NOCASE OR name = ? COLLATE NOCASE",
             (username_input, username_input)
         )
         teacher = await cursor.fetchone()

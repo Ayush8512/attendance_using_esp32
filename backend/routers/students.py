@@ -122,7 +122,7 @@ async def register_student(
                 await db.commit()
 
                 # Sync in-memory face index
-                global_face_index.add_student(clean_roll, encoding)
+                global_face_index.add_or_update_student(clean_roll, existing["name"] or clean_name, encoding, clean_device, b_code, sec, yr)
 
                 logger.info(
                     "Student %s (%s) restored profile via biometric match (dist=%.3f, conf=%.1f%%). Device: %s",
@@ -220,6 +220,7 @@ async def register_student(
             ),
         )
         await db.commit()
+        global_face_index.add_or_update_student(clean_roll, clean_name, encoding, clean_device, final_branch, final_section, final_year)
     finally:
         await db.close()
 
@@ -667,7 +668,7 @@ async def delete_student(roll_no: str):
         
         await db.execute("DELETE FROM attendance WHERE roll_no = ?", (clean_roll,))
         await db.commit()
-        global_face_index.is_loaded = False
+        global_face_index.remove_student(clean_roll)
     finally:
         await db.close()
     return {"status": "success", "message": f"Student '{clean_roll}' deleted successfully."}

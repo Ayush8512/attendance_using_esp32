@@ -24,6 +24,22 @@ logger = logging.getLogger("attendance")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Pre-load all enrolled students into the in-memory vectorized search matrix
+    try:
+        from database import get_db
+        from services.face_engine import global_face_index
+        db = await get_db()
+        try:
+            cursor = await db.execute(
+                "SELECT roll_no, name, face_encoding, device_id, branch_code, section, year FROM students"
+            )
+            rows = await cursor.fetchall()
+            global_face_index.load_all([dict(r) for r in rows])
+            logger.info("Successfully loaded %d student faces into in-memory index.", len(rows))
+        finally:
+            await db.close()
+    except Exception as e:
+        logger.error("Failed to pre-load face index: %s", e)
     yield
 
 app = FastAPI(
