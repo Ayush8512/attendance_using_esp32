@@ -222,15 +222,21 @@ def check_attendance_window(class_info: Dict[str, Any], dt: Optional[datetime] =
     end_hour = class_info.get("end_hour")
     end_minute = class_info.get("end_minute")
     allowed_minutes = class_info.get("allowed_window_minutes", ATTENDANCE_WINDOW_MINUTES)
+    if allowed_minutes is None or allowed_minutes <= 0:
+        allowed_minutes = ATTENDANCE_WINDOW_MINUTES
 
     class_start = dt.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
     
+    # Strict window: Attendance is only allowed for `allowed_minutes` from class start
+    window_end = class_start + timedelta(minutes=allowed_minutes)
+
+    # If the class has a defined end time, the window cannot exceed the class end time
     if end_hour is not None and end_minute is not None:
-        window_end = dt.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
-        if window_end < class_start:
-            window_end += timedelta(days=1)
-    else:
-        window_end = class_start + timedelta(minutes=allowed_minutes)
+        class_end = dt.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+        if class_end < class_start:
+            class_end += timedelta(days=1)
+        if window_end > class_end:
+            window_end = class_end
         
     window_end_str = window_end.strftime("%I:%M %p")
     start_str = class_start.strftime("%I:%M %p")

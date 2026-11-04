@@ -207,6 +207,7 @@ async def verify_attendance(
             global_face_index.update_student_device(matched_roll_no, incoming_dev)
 
         # Dynamic Subject Resolution: ensure attendance is linked to the student's actual timetable class
+        target_class_obj = None
         if subject and subject.strip():
             current_subject = subject.strip()
         else:
@@ -218,6 +219,7 @@ async def verify_attendance(
             )
             if resolved_class and resolved_class.get("subject"):
                 current_subject = resolved_class["subject"]
+                target_class_obj = resolved_class
             else:
                 all_live = await get_all_live_classes_from_db(now)
                 cand = None
@@ -230,10 +232,22 @@ async def verify_attendance(
                         cand = all_live[0]
                 if cand and cand.get("subject"):
                     current_subject = cand["subject"]
+                    target_class_obj = cand
                 elif class_info and class_info.get("subject") and class_info.get("subject") != "General Attendance":
                     current_subject = class_info["subject"]
+                    target_class_obj = class_info
                 else:
                     current_subject = "General Attendance"
+
+        # Strict Attendance Window Enforcement:
+        # If matched to a specific scheduled class, verify that the attendance window (e.g. 20 min) is still open!
+        if target_class_obj:
+            is_win_open, win_err_msg, _ = check_attendance_window(target_class_obj, now)
+            if not is_win_open:
+                raise HTTPException(
+                    status_code=403,
+                    detail=win_err_msg,
+                )
 
         # --- Prevent duplicate attendance for the same student in THIS subject on today ---
         today = date.today().isoformat()
