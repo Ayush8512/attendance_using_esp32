@@ -1,11 +1,12 @@
 body {
     font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
     background: #0b1324;
@@ -18,13 +19,16 @@ body {
     background: #2563eb;
 }
 
-/* Card hover effects */
+/* Card hover & active touch feedback */
 .hover-card {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 .hover-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+button, a {
+    touch-action: manipulation;
 }
 
 /* Toast Animations */
@@ -79,7 +83,14 @@ input[type="file"]::file-selector-button:hover {
     background-color: #2563eb;
 }
 
-/* Status Badges - Clean Rectangular Enterprise Badges (No pill shapes) */
+/* Prevent auto-zoom on mobile inputs in iOS/Android browsers */
+@media (max-width: 640px) {
+    input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="password"], select {
+        font-size: 16px !important;
+    }
+}
+
+/* Status Badges - Clean Rectangular Enterprise Badges */
 .badge {
     padding: 0.2rem 0.55rem;
     border-radius: 4px;
@@ -106,4 +117,27 @@ input[type="file"]::file-selector-button:hover {
     background-color: rgba(245, 158, 11, 0.15);
     color: #fbbf24;
     border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* Mobile Bottom Navigation active styling */
+.mobile-nav-active {
+    color: #3b82f6 !important;
+    position: relative;
+}
+.mobile-nav-active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    box-shadow: 0 0 6px #3b82f6;
+}
+
+/* Smooth iOS inertia scroll */
+.overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
 }

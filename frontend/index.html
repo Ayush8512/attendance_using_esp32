@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>IERT Prayagraj — Attendance Management System</title>
+    <meta name="theme-color" content="#0b1324">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,27 +30,38 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=2.1">
+    <link rel="stylesheet" href="css/style.css?v=2.2">
 </head>
-<body class="bg-darkbg text-gray-200 font-sans antialiased h-screen flex overflow-hidden selection:bg-highlight selection:text-white">
+<body class="bg-darkbg text-gray-200 font-sans antialiased min-h-screen h-[100dvh] flex flex-col md:flex-row overflow-hidden selection:bg-highlight selection:text-white">
     <!-- Navbar/Sidebar Container -->
-    <div id="navbar-container" class="z-20"></div>
+    <div id="navbar-container" class="z-30 shrink-0"></div>
 
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full z-10">
 
-        <!-- Top header for mobile menu toggle -->
-        <header class="md:hidden flex items-center justify-between p-4 bg-cardbg border-b border-gray-700/80">
-            <div class="flex items-center text-sm font-bold text-white tracking-wider">
-                <i class="fas fa-university text-blue-500 mr-2"></i> IERT ATTENDANCE
+        <!-- Top header for mobile view -->
+        <header class="md:hidden flex items-center justify-between px-4 py-3 bg-cardbg border-b border-gray-700/80 sticky top-0 z-20 shadow-md shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                    <i class="fas fa-university"></i>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-white tracking-wider leading-none">IERT PRAYAGRAJ</div>
+                    <div class="text-[10px] text-gray-400 font-mono mt-0.5">Faculty Attendance Portal</div>
+                </div>
             </div>
-            <button id="mobile-menu-btn" class="text-gray-300 hover:text-white focus:outline-none">
-                <i class="fas fa-bars text-xl"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <a href="#classroom" class="px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                    <i class="fas fa-bolt text-yellow-300 text-[10px]"></i> Live
+                </a>
+                <button id="mobile-menu-btn" class="w-8 h-8 rounded-md bg-slate-800 text-gray-200 hover:text-white flex items-center justify-center border border-gray-700/80 focus:outline-none active:scale-95 transition-all" aria-label="Open navigation menu">
+                    <i class="fas fa-bars text-sm"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Dynamic Page Content -->
-        <div id="app" class="flex-1 overflow-y-auto p-4 md:p-8 bg-darkbg">
+        <div id="app" class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-8 bg-darkbg pb-20 md:pb-8">
             <!-- Loading indicator initially -->
             <div class="flex items-center justify-center h-full">
                 <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
@@ -56,9 +70,9 @@
     </main>
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-4 right-4 sm:top-auto sm:bottom-4 z-50 flex flex-col gap-2 pointer-events-none max-w-[90vw]"></div>
 
     <!-- Application Scripts -->
-    <script type="module" src="js/app.js?v=2.1"></script>
+    <script type="module" src="js/app.js?v=2.2"></script>
 </body>
 </html>
