@@ -4,7 +4,7 @@ from datetime import datetime
 from datetime import date
 from utils import get_ist_now
 import json
-from database import get_db
+from database import get_db, db_write_lock
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
 from utils import get_year_label
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
@@ -38,18 +38,24 @@ async def verify_attendance(
     student_year = None
 
     if clean_roll:
-        db_s = await get_db()
-        try:
-            cur_s = await db_s.execute(
-                "SELECT section, branch_code, year FROM students WHERE roll_no = ?", (clean_roll,)
-            )
-            stu_row = await cur_s.fetchone()
-            if stu_row:
-                student_section = stu_row["section"] or None
-                student_branch = stu_row["branch_code"] or None
-                student_year = stu_row["year"] or None
-        finally:
-            await db_s.close()
+        cached_stu = global_face_index.get_student(clean_roll)
+        if cached_stu:
+            student_section = cached_stu.get("section") or None
+            student_branch = cached_stu.get("branch_code") or None
+            student_year = cached_stu.get("year") or None
+        else:
+            db_s = await get_db()
+            try:
+                cur_s = await db_s.execute(
+                    "SELECT section, branch_code, year FROM students WHERE roll_no = ?", (clean_roll,)
+                )
+                stu_row = await cur_s.fetchone()
+                if stu_row:
+                    student_section = stu_row["section"] or None
+                    student_branch = stu_row["branch_code"] or None
+                    student_year = stu_row["year"] or None
+            finally:
+                await db_s.close()
 
     class_info = await get_class_info_from_db(
         now,
@@ -461,18 +467,19 @@ async def add_manual_attendance(payload: AttendanceManualCreate):
 
 async def save_attendance_background(roll_no: str, today: str, time_str: str, subject: str, section: str, branch: str, year: int):
     """Background task to safely save attendance to DB without blocking the API response."""
-    db = await get_db()
-    try:
-        await db.execute(
-            """INSERT OR IGNORE INTO attendance (roll_no, date, time, subject, status, section, branch_code, year)
-               VALUES (?, ?, ?, ?, 'Present', ?, ?, ?)""",
-            (roll_no, today, time_str, subject, section, branch, year)
-        )
-        await db.commit()
-        logger.info("Attendance saved in background: roll=%s, date=%s, subject=%s", roll_no, today, subject)
-    except Exception as e:
-        logger.error("Background attendance save failed: %s", e)
-    finally:
-        await db.close()
+    async with db_write_lock:
+        db = await get_db()
+        try:
+            await db.execute(
+                """INSERT OR IGNORE INTO attendance (roll_no, date, time, subject, status, section, branch_code, year)
+                   VALUES (?, ?, ?, ?, 'Present', ?, ?, ?)""",
+                (roll_no, today, time_str, subject, section, branch, year)
+            )
+            await db.commit()
+            logger.info("Attendance saved in background: roll=%s, date=%s, subject=%s", roll_no, today, subject)
+        except Exception as e:
+            logger.error("Background attendance save failed: %s", e)
+        finally:
+            await db.close()
 
 

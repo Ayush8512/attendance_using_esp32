@@ -13,7 +13,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000.*LISTENING"') do (task
 taskkill /F /IM ngrok.exe >nul 2>&1
 
 echo [2/3] Starting High-Concurrency Backend Server...
-start "Backend Server" cmd /k "cd /d d:\RFID\backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --limit-concurrency 1000 --timeout-keep-alive 65"
+start "Backend Server" cmd /k "cd /d d:\RFID\backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000 --limit-concurrency 1000 --backlog 2048 --timeout-keep-alive 65"
 timeout /t 3 /nobreak >nul
 
 echo [3/3] Starting Permanent Cloud Tunnel (shading-pretzel-mascot.ngrok-free.dev)...

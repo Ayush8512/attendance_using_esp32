@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timedelta
 from utils import get_ist_now
 from typing import Optional, Dict, Any, Tuple
@@ -7,6 +8,16 @@ from database import get_db
 from config import TIMETABLE, ATTENDANCE_WINDOW_MINUTES
 
 logger = logging.getLogger("attendance.timetable_service")
+
+# In-memory high-throughput TTL caches (5 seconds TTL) to serve concurrent student requests with zero DB lag
+_live_classes_cache: Dict[str, Any] = {"time": 0.0, "data": []}
+_class_info_cache: Dict[str, Tuple[float, Optional[Dict[str, Any]]]] = {}
+
+def clear_timetable_cache() -> None:
+    """Clear in-memory timetable caches when schedule is updated."""
+    global _live_classes_cache, _class_info_cache
+    _live_classes_cache = {"time": 0.0, "data": []}
+    _class_info_cache.clear()
 
 def get_class_info(dt: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
     if dt is None:
@@ -53,7 +64,12 @@ def format_class_timings(row_dict: Dict[str, Any]) -> Dict[str, Any]:
     return row_dict
 
 async def get_all_live_classes_from_db(dt: Optional[datetime] = None) -> list[Dict[str, Any]]:
-    """Retrieve all classes currently live across all sections and branches."""
+    """Retrieve all classes currently live across all sections and branches (with 5s in-memory TTL cache)."""
+    global _live_classes_cache
+    now_ts = time.time()
+    if dt is None and (now_ts - _live_classes_cache["time"]) < 5.0 and _live_classes_cache["data"]:
+        return [dict(c) for c in _live_classes_cache["data"]]
+
     if dt is None:
         dt = get_ist_now()
     day_name = dt.strftime("%A")
@@ -114,6 +130,8 @@ async def get_all_live_classes_from_db(dt: Optional[datetime] = None) -> list[Di
     except Exception as exc:
         logger.error("Error in get_all_live_classes_from_db: %s", exc)
 
+    if dt is None:
+        _live_classes_cache = {"time": now_ts, "data": [dict(c) for c in live_classes]}
     return live_classes
 
 async def get_class_info_from_db(
@@ -124,6 +142,15 @@ async def get_class_info_from_db(
 ) -> Optional[Dict[str, Any]]:
     if dt is None:
         dt = get_ist_now()
+    
+    clean_sec = (section or "").strip().upper()
+    clean_br = (branch_code or "").strip().upper()
+    now_ts = time.time()
+    cache_key = f"{dt.strftime('%A')}_{dt.hour}_{dt.minute // 2}_{clean_sec}_{clean_br}_{year or 0}"
+    cached = _class_info_cache.get(cache_key)
+    if cached and (now_ts - cached[0]) < 5.0:
+        return dict(cached[1]) if cached[1] is not None else None
+
     day_name = dt.strftime("%A")
     hour = dt.hour
 

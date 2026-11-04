@@ -23,6 +23,16 @@ logger = logging.getLogger("attendance")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Scale asyncio worker thread pool to 64 threads for high concurrency CPU workloads (face matching & hashing)
+    import asyncio
+    import concurrent.futures
+    try:
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=64, thread_name_prefix="FastAPIWorker"))
+        logger.info("Asyncio thread pool scaled to 64 workers for high concurrency.")
+    except Exception as exc:
+        logger.warning("Could not scale thread pool: %s", exc)
+
     await init_db()
     # Pre-load all enrolled students into the in-memory vectorized search matrix
     try:
@@ -31,11 +41,11 @@ async def lifespan(app: FastAPI):
         db = await get_db()
         try:
             cursor = await db.execute(
-                "SELECT roll_no, name, face_encoding, device_id, branch_code, section, year FROM students"
+                "SELECT roll_no, name, face_encoding, device_id, branch_code, branch_name, section, year, class_roll_no, is_locked FROM students"
             )
             rows = await cursor.fetchall()
             global_face_index.load_all([dict(r) for r in rows])
-            logger.info("Successfully loaded %d student faces into in-memory index.", len(rows))
+            logger.info("Successfully loaded %d student profiles & vectors into in-memory index.", len(rows))
         finally:
             await db.close()
     except Exception as e:

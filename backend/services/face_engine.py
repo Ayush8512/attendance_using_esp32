@@ -271,8 +271,11 @@ class FaceIndex:
                         "name": s.get("name") or "",
                         "device_id": (s.get("device_id") or "").strip(),
                         "branch_code": (s.get("branch_code") or "").strip().upper(),
+                        "branch_name": (s.get("branch_name") or "").strip(),
                         "section": (s.get("section") or "").strip().upper(),
                         "year": s.get("year") or 1,
+                        "class_roll_no": (s.get("class_roll_no") or "").strip(),
+                        "is_locked": bool(s.get("is_locked", 1)),
                         "face_encoding": enc,
                     }
 
@@ -301,8 +304,11 @@ class FaceIndex:
         encoding: List[float],
         device_id: str = "",
         branch_code: str = "",
+        branch_name: str = "",
         section: str = "",
-        year: int = 1
+        year: int = 1,
+        class_roll_no: str = "",
+        is_locked: bool = True
     ) -> None:
         """Add or update a student in the vectorized index without a full reload."""
         with self._lock:
@@ -312,8 +318,11 @@ class FaceIndex:
                 "name": name,
                 "device_id": device_id.strip(),
                 "branch_code": branch_code.strip().upper(),
+                "branch_name": branch_name.strip(),
                 "section": section.strip().upper(),
                 "year": year,
+                "class_roll_no": class_roll_no.strip(),
+                "is_locked": is_locked,
                 "face_encoding": encoding,
             }
 

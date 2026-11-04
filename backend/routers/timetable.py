@@ -6,45 +6,17 @@ from database import get_db
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE, TIMETABLE, ATTENDANCE_WINDOW_MINUTES
 from utils import get_year_label, get_ist_now
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
-from services.timetable_service import get_class_info_from_db, check_attendance_window, get_all_live_classes_from_db
+import time
+from services.timetable_service import get_class_info_from_db, check_attendance_window, get_all_live_classes_from_db, clear_timetable_cache
+
+_schedule_cache: dict[str, tuple[float, list]] = {}
+
 import logging
 logger = logging.getLogger('attendance')
 
 router = APIRouter(tags=['timetable'])
 
-@router.get('/timetable')
-async def view_timetable(
-    section: str | None = None,
-    branch_code: str | None = None,
-    year: int | None = None,
-):
-    """Return the timetable filtered by section/branch (or full schedule for admin) with strict attendance windows."""
-    clean_sec = section.strip().upper() if section and section.strip() else None
-    clean_branch = branch_code.strip().upper() if branch_code and branch_code.strip() else None
-
-    # Infer branch & year from section if missing
-    if clean_sec and len(clean_sec) >= 2:
-        if not clean_branch:
-            clean_branch = clean_sec[0]
-        if not year and clean_sec[1].isdigit():
-            year = int(clean_sec[1])
-
-    now = get_ist_now()
-    current_class = await get_class_info_from_db(now, section=clean_sec, branch_code=clean_branch, year=year)
-    all_live_classes = await get_all_live_classes_from_db(now)
-
-    if not current_class and not clean_sec and not clean_branch and all_live_classes:
-        current_class = all_live_classes[0]
-
-    window_status = None
-    if current_class:
-        is_allowed, reason, window_end_str = check_attendance_window(current_class, now)
-        window_status = {
-            "is_open": is_allowed,
-            "window_end": window_end_str,
-            "message": "Window open for attendance" if is_allowed else reason,
-        }
-
+async def _fetch_schedule_from_db(clean_sec, clean_branch, year):
     schedule = []
     try:
         db = await get_db()
@@ -52,8 +24,6 @@ async def view_timetable(
             where_clauses = []
             params = []
 
-            # If section is provided: Show (1) classes specifically for this section, OR
-            # (2) classes for 'All Sections' (empty / ALL) matching branch
             if clean_sec:
                 if clean_branch and year:
                     where_clauses.append(
@@ -173,7 +143,49 @@ async def view_timetable(
             await db.close()
     except Exception as exc:
         logger.warning("Error loading timetable from DB: %s", exc)
+    return schedule
 
+
+@router.get('/timetable')
+async def view_timetable(
+    section: str | None = None,
+    branch_code: str | None = None,
+    year: int | None = None,
+):
+    """Return the timetable filtered by section/branch (or full schedule for admin) with strict attendance windows."""
+    clean_sec = section.strip().upper() if section and section.strip() else None
+    clean_branch = branch_code.strip().upper() if branch_code and branch_code.strip() else None
+
+    # Infer branch & year from section if missing
+    if clean_sec and len(clean_sec) >= 2:
+        if not clean_branch:
+            clean_branch = clean_sec[0]
+        if not year and clean_sec[1].isdigit():
+            year = int(clean_sec[1])
+
+    now = get_ist_now()
+    current_class = await get_class_info_from_db(now, section=clean_sec, branch_code=clean_branch, year=year)
+    all_live_classes = await get_all_live_classes_from_db(now)
+
+    if not current_class and not clean_sec and not clean_branch and all_live_classes:
+        current_class = all_live_classes[0]
+
+    window_status = None
+    if current_class:
+        is_allowed, reason, window_end_str = check_attendance_window(current_class, now)
+        window_status = {
+            "is_open": is_allowed,
+            "window_end": window_end_str,
+            "message": "Window open for attendance" if is_allowed else reason,
+        }
+
+    cache_key = f"{clean_sec}_{clean_branch}_{year}"
+    now_ts = time.time()
+    if cache_key in _schedule_cache and (now_ts - _schedule_cache[cache_key][0]) < 10.0:
+        schedule = [dict(s) for s in _schedule_cache[cache_key][1]]
+    else:
+        schedule = await _fetch_schedule_from_db(clean_sec, clean_branch, year)
+        _schedule_cache[cache_key] = (now_ts, [dict(s) for s in schedule])
     # Only fall back to default general timetable if NO student filter was applied
     if not schedule and not clean_sec and not clean_branch:
         schedule = [

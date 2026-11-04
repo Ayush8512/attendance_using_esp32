@@ -1,3 +1,4 @@
+import asyncio
 import os
 import aiosqlite
 import logging
@@ -5,24 +6,30 @@ from config import DATABASE_PATH, TIMETABLE
 
 logger = logging.getLogger("attendance.db")
 
+# Global async serialization lock for database write transactions.
+# Guarantees that concurrent student registrations/attendance saves execute sequentially
+# without colliding on SQLite's exclusive write lock (eliminates "database is locked" errors).
+db_write_lock = asyncio.Lock()
+
 
 async def get_db() -> aiosqlite.Connection:
-    """Open and return a SQLite database connection with concurrency safety."""
+    """Open and return a SQLite database connection optimized for high-concurrency reads."""
     db = await aiosqlite.connect(DATABASE_PATH, timeout=60.0)
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA busy_timeout = 60000;")
-    await db.execute("PRAGMA synchronous = NORMAL;")
-    await db.execute("PRAGMA cache_size = -64000;")
-    await db.execute("PRAGMA temp_store = MEMORY;")
-    await db.execute("PRAGMA mmap_size = 268435456;")
     return db
 
 
 async def init_db() -> None:
-    """Create SQLite tables if they do not already exist."""
+    """Create SQLite tables and configure high-concurrency WAL mode."""
     db = await get_db()
     try:
-        await db.execute("PRAGMA journal_mode=WAL")
+        await db.execute("PRAGMA journal_mode=WAL;")
+        await db.execute("PRAGMA synchronous = NORMAL;")
+        await db.execute("PRAGMA cache_size = -64000;")
+        await db.execute("PRAGMA temp_store = MEMORY;")
+        await db.execute("PRAGMA mmap_size = 268435456;")
+
         # Concurrency and Performance Indexes
         await db.execute("CREATE INDEX IF NOT EXISTS idx_teachers_email_nocase ON teachers(email COLLATE NOCASE);")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_attendance_date_subject ON attendance(date, subject);")
@@ -207,8 +214,7 @@ async def init_db() -> None:
                 pass
 
         await db.commit()
-        logger.info("SQLite database initialized at: %s", DATABASE_PATH)
+        logger.info("SQLite database initialized with WAL mode at: %s", DATABASE_PATH)
 
     finally:
         await db.close()
-

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile, File
 from typing import Optional
 from datetime import datetime, date
 import json
-from database import get_db
+from database import get_db, db_write_lock
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
 from services.face_engine import extract_face_encoding, match_encoding, compute_match_confidence, global_face_index
@@ -539,8 +539,27 @@ async def get_student_attendance_analytics(roll_no: str):
 
 @router.get('/students/{roll_no}')
 async def get_student_profile(roll_no: str):
-    """Fetch student profile by roll number to restore local session after app reinstall."""
+    """Fetch student profile by roll number to restore local session after app reinstall (Zero-DB RAM Lookup)."""
     clean_roll = roll_no.strip().upper()
+    
+    # Fast-path: Check in-memory global_face_index first for instant response without SQLite hit
+    cached = global_face_index.get_student(clean_roll)
+    if cached:
+        b_code = cached.get("branch_code") or ""
+        b_name = cached.get("branch_name") or BRANCH_METADATA.get(b_code, {}).get("name", "")
+        return {
+            "status": "success",
+            "roll_no": cached["roll_no"],
+            "name": cached["name"],
+            "branch_code": b_code,
+            "branch_name": b_name,
+            "section": cached.get("section") or "",
+            "year": cached.get("year") or 1,
+            "class_roll_no": cached.get("class_roll_no") or "",
+            "is_locked": cached.get("is_locked", True),
+            "device_id": cached.get("device_id") or "",
+        }
+
     db = await get_db()
     try:
         cursor = await db.execute(
