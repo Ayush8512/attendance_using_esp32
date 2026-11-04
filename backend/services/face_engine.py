@@ -29,7 +29,7 @@ def load_and_orient_image(contents: bytes) -> np.ndarray:
         pil_img = pil_img.convert("RGB")
     
     pil_img.thumbnail((512, 512), Image.Resampling.BILINEAR)
-    return np.array(pil_img)
+    return np.ascontiguousarray(np.array(pil_img), dtype=np.uint8)
 
 
 def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) -> List[float]:
@@ -65,7 +65,7 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
     if not face_locations:
         for angle in [90, 270, 180]:
             k = 1 if angle == 90 else (3 if angle == 270 else 2)
-            candidate_img = np.rot90(base_image, k)
+            candidate_img = np.ascontiguousarray(np.rot90(base_image, k), dtype=np.uint8)
             locs = face_recognition.face_locations(candidate_img, number_of_times_to_upsample=0, model="hog")
             if not locs:
                 locs = face_recognition.face_locations(candidate_img, number_of_times_to_upsample=1, model="hog")
@@ -175,6 +175,7 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
         except Exception as spoof_exc:
             logger.warning("[ANTI-SPOOF] Check error (non-blocking): %s", spoof_exc)
 
+    working_image = np.ascontiguousarray(working_image, dtype=np.uint8)
     jitters = 3 if is_registration else 1
     encodings = face_recognition.face_encodings(
         working_image,

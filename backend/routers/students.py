@@ -121,19 +121,30 @@ async def register_student(
                 )
                 await db.commit()
 
-                # Sync in-memory face index
-                global_face_index.add_or_update_student(clean_roll, existing["name"] or clean_name, encoding, clean_device, b_code, sec, yr)
-
-                logger.info(
-                    "Student %s (%s) restored profile via biometric match (dist=%.3f, conf=%.1f%%). Device: %s",
-                    clean_roll, existing["name"], match_dist, match_conf, clean_device
-                )
-
                 b_code = existing["branch_code"] or final_branch
                 b_name = existing["branch_name"] or final_branch_name or BRANCH_METADATA.get(b_code, {}).get("name", "")
                 sec = existing["section"] or final_section
                 yr = existing["year"] or final_year
                 c_roll = existing["class_roll_no"] or final_class_roll
+
+                # Sync in-memory face index with full metadata keyword arguments
+                global_face_index.add_or_update_student(
+                    roll_no=clean_roll,
+                    name=existing["name"] or clean_name,
+                    encoding=encoding,
+                    device_id=clean_device,
+                    branch_code=b_code,
+                    branch_name=b_name,
+                    section=sec,
+                    year=yr,
+                    class_roll_no=c_roll,
+                    is_locked=bool(existing["is_locked"]) if existing["is_locked"] is not None else True
+                )
+
+                logger.info(
+                    "Student %s (%s) restored profile via biometric match (dist=%.3f, conf=%.1f%%). Device: %s",
+                    clean_roll, existing["name"], match_dist, match_conf, clean_device
+                )
 
                 return {
                     "status": "success",
@@ -220,7 +231,18 @@ async def register_student(
             ),
         )
         await db.commit()
-        global_face_index.add_or_update_student(clean_roll, clean_name, encoding, clean_device, final_branch, final_section, final_year)
+        global_face_index.add_or_update_student(
+            roll_no=clean_roll,
+            name=clean_name,
+            encoding=encoding,
+            device_id=clean_device,
+            branch_code=final_branch,
+            branch_name=final_branch_name,
+            section=final_section,
+            year=final_year,
+            class_roll_no=final_class_roll,
+            is_locked=True
+        )
     finally:
         await db.close()
 
