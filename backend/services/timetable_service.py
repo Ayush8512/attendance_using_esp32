@@ -234,10 +234,59 @@ async def get_class_info_from_db(
     except Exception as exc:
         logger.debug("Could not query timetable table: %s", exc)
 
-    if section or branch_code:
-        return None
+    # If no exact minute match, check for recent scheduled class today for this section/branch
+    try:
+        db_rec = await get_db()
+        try:
+            if section and section.strip():
+                cur_rec = await db_rec.execute(
+                    """
+                    SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email,
+                           COALESCE(section, '') as section, COALESCE(branch_code, '') as branch_code, 
+                           COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
+                    FROM timetable
+                    WHERE day = ? AND UPPER(section) = ?
+                      AND (hour * 60 + COALESCE(start_minute, 0)) <= ?
+                      AND (hour * 60 + COALESCE(start_minute, 0)) >= (? - 120)
+                    ORDER BY hour DESC, start_minute DESC LIMIT 1
+                    """,
+                    (day_name, clean_sec, current_total, current_total),
+                )
+                row_rec = await cur_rec.fetchone()
+                if row_rec:
+                    return format_class_timings(dict(row_rec))
+            elif branch_code and branch_code.strip():
+                cur_rec = await db_rec.execute(
+                    """
+                    SELECT day, hour, start_minute, end_hour, end_minute, allowed_window_minutes, subject, teacher_email,
+                           COALESCE(section, '') as section, COALESCE(branch_code, '') as branch_code, 
+                           COALESCE(branch_name, '') as branch_name, COALESCE(year, 0) as year
+                    FROM timetable
+                    WHERE day = ? AND UPPER(branch_code) = ?
+                      AND (hour * 60 + COALESCE(start_minute, 0)) <= ?
+                      AND (hour * 60 + COALESCE(start_minute, 0)) >= (? - 120)
+                    ORDER BY hour DESC, start_minute DESC LIMIT 1
+                    """,
+                    (day_name, clean_br, current_total, current_total),
+                )
+                row_rec = await cur_rec.fetchone()
+                if row_rec:
+                    return format_class_timings(dict(row_rec))
+        finally:
+            await db_rec.close()
+    except Exception as exc:
+        logger.debug("Recent class lookup fallback error: %s", exc)
 
-    return get_class_info(dt)
+    # Fallback to standard academic curriculum timetable from config.py
+    cfg_class = get_class_info(dt)
+    if cfg_class:
+        if section:
+            cfg_class["section"] = section
+        if branch_code:
+            cfg_class["branch_code"] = branch_code
+        return cfg_class
+
+    return None
 
 
 def check_attendance_window(class_info: Dict[str, Any], dt: Optional[datetime] = None) -> Tuple[bool, str, str]:

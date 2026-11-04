@@ -259,10 +259,12 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
         final time = data['time'] ?? '';
         final confidence = data['confidence'] ?? 0;
         final confStr = confidence > 0 ? '\nMatch Confidence: $confidence%' : '';
+        final subject = (data['subject'] ?? '').toString();
+        final subjStr = subject.isNotEmpty ? '\nSubject: $subject' : '';
         if (status == 'already_marked') {
-          _setStatus('✅ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo$confStr', Colors.indigo.shade800);
+          _setStatus('✅ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo$subjStr$confStr', Colors.indigo.shade800);
         } else {
-          _setStatus('✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo\nTime: $time$confStr', Colors.green.shade800);
+          _setStatus('✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo$subjStr\nTime: $time$confStr', Colors.green.shade800);
         }
       } else if (response.statusCode == 403) {
         final detail = data['detail'] ?? 'Time limit exceeded.';

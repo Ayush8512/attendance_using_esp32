@@ -9,7 +9,7 @@ from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
 from utils import get_year_label
 from schemas import AttendanceUpdate, AttendanceManualCreate, StudentProfileUpdate
 from services.face_engine import extract_face_encoding, match_encoding, compute_match_confidence, global_face_index
-from services.timetable_service import get_class_info_from_db, check_attendance_window
+from services.timetable_service import get_class_info_from_db, check_attendance_window, get_class_info, get_all_live_classes_from_db
 from services.report_service import generate_attendance_excel, send_email_with_attachment
 import logging
 logger = logging.getLogger('attendance')
@@ -65,15 +65,23 @@ async def verify_attendance(
     )
 
     if not class_info:
-        # No timetable configured — use a fallback "Open Session" so face scan always works
-        logger.info("No timetable entry found for current time. Using fallback open session.")
+        # Resolve meaningful subject name from curriculum timetable or student branch
+        resolved_subj = "Academic Class"
+        cfg_info = get_class_info(now)
+        if cfg_info and cfg_info.get("subject"):
+            resolved_subj = cfg_info["subject"]
+        elif student_branch and student_branch in BRANCH_METADATA:
+            resolved_subj = f"{BRANCH_METADATA[student_branch]['name']} Class"
+        elif student_branch:
+            resolved_subj = f"Branch {student_branch} Class"
+
         class_info = {
-            "subject": "General Attendance",
+            "subject": resolved_subj,
             "hour": now.hour,
             "start_minute": 0,
             "end_hour": None,
             "end_minute": None,
-            "allowed_window_minutes": 1440,  # 24 hours — always open
+            "allowed_window_minutes": 1440,
             "section": student_section or "",
             "branch_code": student_branch or "",
             "branch_name": "",
@@ -239,11 +247,19 @@ async def verify_attendance(
                 if cand and cand.get("subject"):
                     current_subject = cand["subject"]
                     target_class_obj = cand
-                elif class_info and class_info.get("subject") and class_info.get("subject") != "General Attendance":
+                elif class_info and class_info.get("subject") and class_info.get("subject") not in ("General Attendance", "Academic Class"):
                     current_subject = class_info["subject"]
                     target_class_obj = class_info
                 else:
-                    current_subject = "General Attendance"
+                    cfg_match = get_class_info(now)
+                    if cfg_match and cfg_match.get("subject"):
+                        current_subject = cfg_match["subject"]
+                    elif matched_branch and matched_branch in BRANCH_METADATA:
+                        current_subject = f"{BRANCH_METADATA[matched_branch]['name']} Class"
+                    elif matched_section:
+                        current_subject = f"Section {matched_section} Class"
+                    else:
+                        current_subject = "Academic Session" 
 
         # Strict Attendance Window Enforcement:
         # If matched to a specific scheduled class, verify that the attendance window (e.g. 20 min) is still open!

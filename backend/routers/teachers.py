@@ -42,11 +42,11 @@ class TeacherOut(BaseModel):
 
 @router.get("", response_model=List[TeacherOut])
 async def list_teachers():
-    """Retrieve list of faculty accounts. Super Admin account is never exposed in faculty lists."""
+    """Retrieve list of registered faculty accounts."""
     db = await get_db()
     try:
         cursor = await db.execute(
-            "SELECT id, name, email, department, role, created_at FROM teachers WHERE role != 'admin' ORDER BY name ASC"
+            "SELECT id, name, email, department, role, created_at FROM teachers ORDER BY role DESC, name ASC"
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
@@ -55,12 +55,12 @@ async def list_teachers():
 
 @router.post("", response_model=TeacherOut, status_code=status.HTTP_201_CREATED)
 async def create_teacher(payload: TeacherCreate):
-    """Super Admin registers a new faculty account."""
+    """Super Admin registers a new faculty/admin account."""
     name = payload.name.strip()
     email = payload.email.strip().lower()
     password = payload.password.strip()
     department = payload.department.strip() if payload.department else "Faculty"
-    role = "teacher"  # Force role to teacher
+    role = payload.role.strip().lower() if payload.role in ["admin", "teacher"] else "teacher"
 
     if not name or not email or not password:
         raise HTTPException(status_code=400, detail="Name, Email, and Password are required.")
