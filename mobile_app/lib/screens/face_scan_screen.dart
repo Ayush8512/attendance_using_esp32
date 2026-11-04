@@ -130,15 +130,15 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
         final leftEyeOpen = face.leftEyeOpenProbability ?? 1.0;
         final rightEyeOpen = face.rightEyeOpenProbability ?? 1.0;
 
-        if (_blinkState == 0 && leftEyeOpen > 0.7 && rightEyeOpen > 0.7) {
+        if (_blinkState == 0 && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
           _blinkState = 1; // Eyes are open, waiting for blink
-          _setStatus('Face detected. Please BLINK to capture.', Colors.indigo);
+          _setStatus('Face detected. Please BLINK naturally to capture.', Colors.indigo);
         } 
-        else if (_blinkState == 1 && leftEyeOpen < 0.2 && rightEyeOpen < 0.2) {
+        else if (_blinkState == 1 && (leftEyeOpen < 0.25 || rightEyeOpen < 0.25)) {
           _blinkState = 2; // Eyes closed (Blinking)
           _setStatus('Blink detected! Capturing...', Colors.green.shade800);
         } 
-        else if (_blinkState == 2 && leftEyeOpen > 0.7 && rightEyeOpen > 0.7) {
+        else if (_blinkState == 2 && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
           _blinkState = 3; // Eyes opened again. Trigger Capture!
           // Stop stream and capture
           await _cameraController?.stopImageStream();
@@ -411,12 +411,24 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                   height: 56,
                   child: FilledButton.icon(
                     onPressed: _isProcessing ? null : () {
-                      // Manual override just in case blink detection fails
+                      if (_blinkState < 2) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Anti-Spoofing Active: Natural eye blink is required. Static photos cannot be used!'),
+                            backgroundColor: Colors.redAccent,
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                        return;
+                      }
                       if (_blinkState != 3) {
-                         _cameraController?.stopImageStream();
+                        _cameraController?.stopImageStream();
                         _captureAndVerify();
                       }
                     },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _blinkState >= 2 ? Colors.green.shade700 : const Color(0xFF0F3460),
+                    ),
                     icon: _isProcessing
                         ? const SizedBox(
                             width: 24,
@@ -426,10 +438,12 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.camera, size: 28),
+                        : Icon(_blinkState >= 2 ? Icons.verified : Icons.remove_red_eye, size: 28),
                     label: Text(
-                      _isProcessing ? 'Uploading...' : 'Manual Override Capture',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      _isProcessing
+                          ? 'Uploading...'
+                          : (_blinkState >= 2 ? 'Blink Verified! Capturing...' : 'Blink Eyes to Auto-Capture'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

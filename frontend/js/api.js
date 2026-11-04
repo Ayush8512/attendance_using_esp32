@@ -122,6 +122,10 @@ export const api = {
     deleteTimetableEntry: (id) => fetchWithHandler(`/timetable/${id}`, {
         method: "DELETE"
     }),
+    extendWindow: (formData) => fetchWithHandler("/timetable/extend-window", {
+        method: "POST",
+        body: formData
+    }),
     resetStudentDevice: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/reset-device`, {
         method: "POST"
     }),

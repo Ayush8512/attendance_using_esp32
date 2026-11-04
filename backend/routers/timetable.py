@@ -384,6 +384,94 @@ async def add_bulk_timetable_entries(payload: TimetableBatchRequest):
         "count": saved_count
     }
 
+@router.post('/timetable/extend-window')
+async def extend_timetable_window(
+    timetable_id: Optional[int] = Form(None),
+    minutes_to_add: int = Form(10, ge=1, le=120),
+    subject: Optional[str] = Form(None),
+    section: Optional[str] = Form(None),
+):
+    """Extend the allowed attendance window for an active or scheduled lecture."""
+    now = get_ist_now()
+    day_name = now.strftime("%A")
+    db = await get_db()
+    try:
+        target_row = None
+        if timetable_id is not None and timetable_id > 0:
+            cursor = await db.execute(
+                "SELECT id, subject, section, allowed_window_minutes, hour, start_minute FROM timetable WHERE id = ?",
+                (timetable_id,)
+            )
+            target_row = await cursor.fetchone()
+
+        if not target_row and subject:
+            clean_sub = subject.strip()
+            where_sec = "AND UPPER(section) = ?" if section else ""
+            params = [day_name, f"%{clean_sub}%"]
+            if section:
+                params.append(section.strip().upper())
+            cursor = await db.execute(
+                f"""
+                SELECT id, subject, section, allowed_window_minutes, hour, start_minute 
+                FROM timetable 
+                WHERE day = ? AND LOWER(subject) LIKE LOWER(?) {where_sec}
+                ORDER BY hour DESC LIMIT 1
+                """,
+                params
+            )
+            target_row = await cursor.fetchone()
+
+        if not target_row:
+            # Fallback: get current live class
+            all_live = await get_all_live_classes_from_db(now)
+            if all_live:
+                target_id = all_live[0].get("id")
+                if target_id:
+                    cursor = await db.execute(
+                        "SELECT id, subject, section, allowed_window_minutes, hour, start_minute FROM timetable WHERE id = ?",
+                        (target_id,)
+                    )
+                    target_row = await cursor.fetchone()
+
+        if not target_row:
+            raise HTTPException(status_code=404, detail="No active or matching timetable lecture found to extend window.")
+
+        row_id = target_row["id"]
+        current_wm = target_row["allowed_window_minutes"] or ATTENDANCE_WINDOW_MINUTES
+        new_wm = current_wm + minutes_to_add
+
+        await db.execute(
+            "UPDATE timetable SET allowed_window_minutes = ? WHERE id = ?",
+            (new_wm, row_id)
+        )
+        await db.commit()
+
+        # Update in-memory fallback dict if present
+        h = target_row["hour"]
+        if (day_name, h) in TIMETABLE:
+            TIMETABLE[(day_name, h)]["allowed_window_minutes"] = new_wm
+
+        # Clear in-memory caches
+        clear_timetable_cache()
+        _schedule_cache.clear()
+
+        subj_name = target_row["subject"]
+        sec_name = target_row["section"] or "All"
+        logger.info(f"[TIMETABLE] Extended window for '{subj_name}' (Sec {sec_name}, ID: {row_id}) by +{minutes_to_add}m -> Total: {new_wm}m")
+
+        return {
+            "status": "success",
+            "message": f"Attendance window for '{subj_name}' extended by +{minutes_to_add} minutes! Total window: {new_wm} minutes.",
+            "timetable_id": row_id,
+            "subject": subj_name,
+            "section": sec_name,
+            "added_minutes": minutes_to_add,
+            "new_allowed_window_minutes": new_wm,
+        }
+    finally:
+        await db.close()
+
+
 @router.get('/timetable/live-alerts')
 async def get_live_class_alerts(teacher_email: Optional[str] = None, section: Optional[str] = None):
     """Real-time query for active class notifications & attendance window alerts."""

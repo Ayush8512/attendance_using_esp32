@@ -347,6 +347,16 @@ export default {
 
                     <!-- Related Action Buttons -->
                     <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-700">
+                        <button id="btn-extend-window-5" 
+                                class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border border-amber-500/50 shadow-sm"
+                                title="Add 5 more minutes to the attendance window">
+                            <i class="fas fa-plus-circle"></i> +5 Min
+                        </button>
+                        <button id="btn-extend-window-10" 
+                                class="px-3.5 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors border border-amber-600/50 shadow-sm"
+                                title="Add 10 more minutes to the attendance window">
+                            <i class="fas fa-clock"></i> +10 Min
+                        </button>
                         <button id="btn-download-selected-sheet" 
                                 class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-semibold flex items-center gap-2 transition-colors border border-slate-600 shadow-sm">
                             <i class="fas fa-download"></i> Download Excel
@@ -360,6 +370,32 @@ export default {
             `;
 
             // Wire action buttons
+            const handleExtendWindow = async (mins) => {
+                const btn5 = document.getElementById('btn-extend-window-5');
+                const btn10 = document.getElementById('btn-extend-window-10');
+                if (btn5) btn5.disabled = true;
+                if (btn10) btn10.disabled = true;
+                try {
+                    const fd = new FormData();
+                    if (current.id) fd.append('timetable_id', current.id);
+                    fd.append('minutes_to_add', mins);
+                    if (current.subject) fd.append('subject', current.subject);
+                    if (current.section) fd.append('section', current.section);
+
+                    const res = await api.extendWindow(fd);
+                    showToast(res.message || `Attendance window extended by +${mins} minutes!`, 'success');
+                    await loadLiveStatus();
+                } catch (err) {
+                    showToast(`Failed to extend window: ${err.message}`, 'error');
+                } finally {
+                    if (btn5) btn5.disabled = false;
+                    if (btn10) btn10.disabled = false;
+                }
+            };
+
+            document.getElementById('btn-extend-window-5')?.addEventListener('click', () => handleExtendWindow(5));
+            document.getElementById('btn-extend-window-10')?.addEventListener('click', () => handleExtendWindow(10));
+
             document.getElementById('btn-download-selected-sheet')?.addEventListener('click', async () => {
                 const btn = document.getElementById('btn-download-selected-sheet');
                 const origText = btn.innerHTML;
