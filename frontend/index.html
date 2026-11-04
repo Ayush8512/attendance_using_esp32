@@ -30,7 +30,22 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css?v=2.2">
+    <link rel="stylesheet" href="css/style.css?v=2.4">
+    <script>
+        (async function() {
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                const data = await res.json();
+                if (!data || data.status !== 'success' || !data.user) {
+                    localStorage.removeItem('currentUser');
+                    window.location.replace('/login.html');
+                }
+            } catch (_) {
+                localStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+            }
+        })();
+    </script>
 </head>
 <body class="bg-darkbg text-gray-200 font-sans antialiased min-h-screen h-[100dvh] flex flex-col md:flex-row overflow-hidden selection:bg-highlight selection:text-white">
     <!-- Navbar/Sidebar Container -->
@@ -73,6 +88,6 @@
     <div id="toast-container" class="fixed top-4 right-4 sm:top-auto sm:bottom-4 z-50 flex flex-col gap-2 pointer-events-none max-w-[90vw]"></div>
 
     <!-- Application Scripts -->
-    <script type="module" src="js/app.js?v=2.2"></script>
+    <script type="module" src="js/app.js?v=2.4"></script>
 </body>
 </html>
