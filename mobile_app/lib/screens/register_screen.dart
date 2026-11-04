@@ -44,6 +44,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
   bool _isRegistering = false;
   bool _isRestoring = false;
+  bool _showServerUrl = false;
 
   @override
   void initState() {
@@ -548,7 +549,18 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditMode ? 'Edit Student Profile' : 'Student Registration'),
+        title: GestureDetector(
+          onLongPress: () {
+            setState(() => _showServerUrl = !_showServerUrl);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_showServerUrl ? 'Admin Mode: Server URL visible' : 'Server URL hidden'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          child: Text(widget.isEditMode ? 'Edit Student Profile' : 'Student Registration'),
+        ),
         centerTitle: true,
         backgroundColor: const Color(0xFF16213E),
         foregroundColor: Colors.white,
@@ -764,25 +776,27 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Server URL input
-                TextFormField(
-                  controller: _serverController,
-                  decoration: InputDecoration(
-                    labelText: 'Server Base URL',
-                    hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
-                    prefixIcon: const Icon(Icons.dns),
-                    helperText: 'Cloud Testing Link. Works on 4G Mobile Data.',
-                    helperMaxLines: 2,
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                // Server URL input (Hidden for students by default)
+                if (_showServerUrl) ...[
+                  TextFormField(
+                    controller: _serverController,
+                    decoration: InputDecoration(
+                      labelText: 'Server Base URL (Admin Only)',
+                      hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
+                      prefixIcon: const Icon(Icons.dns),
+                      helperText: 'Cloud Testing Link. Works on 4G Mobile Data.',
+                      helperMaxLines: 2,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Please enter server URL' : null,
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Please enter server URL' : null,
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
 
                 // Restore Profile action for re-installed app
                 Container(
