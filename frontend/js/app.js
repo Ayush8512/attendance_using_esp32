@@ -2,7 +2,7 @@ import { renderNavbar } from './components/navbar.js';
 import dashboardPage from './pages/dashboard.js?v=2.1';
 import studentsPage from './pages/students.js';
 import attendancePage from './pages/attendance.js';
-import classroomPage from './pages/classroom.js?v=1.2';
+import classroomPage from './pages/classroom.js?v=2.2';
 import timetablePage from './pages/timetable.js';
 import { renderTeachersPage } from './pages/teachers.js';
 import { api } from './api.js';

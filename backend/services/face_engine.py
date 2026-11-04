@@ -146,7 +146,7 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
                 screen_lines, high_freq_ratio, laplacian_var, texture_uniformity
             )
 
-            if high_freq_ratio > 0.47:
+            if high_freq_ratio > 0.52:
                 logger.warning("[ANTI-SPOOF BLOCKED] High Moiré / LCD pixel grid detected: %.4f", high_freq_ratio)
                 raise ValueError(
                     "⚠️ Liveness Check Failed! Digital screen pixel lattice / Moiré pattern detected. "
@@ -160,7 +160,7 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
                 spoof_flags += 1
             if mean_saturation > 165:
                 spoof_flags += 1
-            if screen_lines > 60 and high_freq_ratio > 0.42:
+            if screen_lines > 60 and high_freq_ratio > 0.48:
                 spoof_flags += 1
 
             if spoof_flags >= 2:

@@ -14,7 +14,7 @@ REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 # 0.44 = strict anti-proxy tolerance (blocks re-photographed screens & lookalikes)
-FACE_MATCH_TOLERANCE = 0.44  
+FACE_MATCH_TOLERANCE = 0.50  
 
 # SMTP / Email configuration
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -23,7 +23,7 @@ SMTP_USER = os.getenv("SMTP_USER", "your_email@gmail.com")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "your_app_password")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", SMTP_USER)
 
-ATTENDANCE_WINDOW_MINUTES = 10
+ATTENDANCE_WINDOW_MINUTES = 60
 
 BRANCH_METADATA: Dict[str, Dict[str, str]] = {
     "A": {"name": "Computer Science & Engineering", "short": "CSE"},

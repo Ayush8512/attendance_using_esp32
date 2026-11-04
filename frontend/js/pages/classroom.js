@@ -24,12 +24,15 @@ export default {
                         Auto-refreshing live classroom feed &bull; Server Time: <span id="header-server-time" class="font-mono text-highlight font-semibold">--:--:--</span>
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button id="btn-refresh-live" class="px-4 py-2 bg-cardbg hover:bg-gray-700 text-white rounded-lg border border-gray-600 flex items-center gap-2 text-sm shadow transition-colors">
+                <div class="flex items-center gap-2.5">
+                    <button id="btn-quick-class" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm flex items-center gap-2 shadow font-semibold transition-colors">
+                        <i class="fas fa-bolt text-yellow-300"></i> Start Live Class
+                    </button>
+                    <button id="btn-refresh-live" class="px-3 py-2 bg-cardbg hover:bg-gray-700 text-white rounded-lg border border-gray-600 flex items-center gap-1.5 text-sm shadow transition-colors">
                         <i class="fas fa-sync-alt"></i> Refresh
                     </button>
-                    <a href="#timetable" class="px-4 py-2 bg-accent hover:bg-blue-900 text-white rounded-lg text-sm flex items-center gap-2 shadow transition-colors">
-                        <i class="fas fa-calendar-alt"></i> View Schedule
+                    <a href="#timetable" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-lg text-sm flex items-center gap-1.5 border border-slate-700 shadow transition-colors">
+                        <i class="fas fa-calendar-alt"></i> Schedule
                     </a>
                 </div>
             </div>
@@ -116,19 +119,28 @@ export default {
                 gridEl.innerHTML = `
                     <div class="col-span-full bg-cardbg rounded-lg border border-gray-700 p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div class="flex items-center gap-3 text-gray-400">
-                            <div class="w-10 h-10 rounded-md bg-yellow-500/10 flex items-center justify-center text-yellow-500 border border-yellow-500/30">
-                                <i class="fas fa-coffee text-lg"></i>
+                            <div class="w-10 h-10 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/30">
+                                <i class="fas fa-chalkboard-teacher text-lg"></i>
                             </div>
                             <div>
-                                <p class="text-white font-semibold">No Lecture Currently Live</p>
-                                <p class="text-xs text-gray-400">No classes are scheduled in the timetable for this hour.</p>
+                                <p class="text-white font-semibold">No Lecture Currently Scheduled For This Hour</p>
+                                <p class="text-xs text-gray-400">Click "Start Live Class" above to start an instant 60-minute session, or view the schedule.</p>
                             </div>
                         </div>
-                        <a href="#timetable" class="px-4 py-2 bg-cardbg hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-md text-xs font-semibold flex items-center gap-2 transition-colors">
-                            <i class="fas fa-calendar-alt"></i> View Schedule
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-empty-start-class" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                                <i class="fas fa-bolt text-yellow-300"></i> Start Class Now
+                            </button>
+                            <a href="#timetable" class="px-3 py-1.5 bg-cardbg hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                                <i class="fas fa-calendar-alt"></i> View Schedule
+                            </a>
+                        </div>
                     </div>
                 `;
+                document.getElementById('btn-empty-start-class')?.addEventListener('click', openQuickClassModal);
+                renderSelectedClassBanner();
+                renderStats();
+                renderGrid();
                 return;
             }
 
@@ -546,6 +558,106 @@ export default {
             `).join('');
         };
 
+        
+        const openQuickClassModal = () => {
+            let existingModal = document.getElementById('quick-class-modal');
+            if (existingModal) existingModal.remove();
+
+            let teacherEmail = 'teacher@college.edu';
+            try {
+                const u = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                if (u && u.email) teacherEmail = u.email;
+            } catch (_) {}
+
+            const modalHtml = `
+            <div id="quick-class-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div class="bg-cardbg border border-gray-700 rounded-xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-700 mb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-bolt text-yellow-400"></i> Start Live Class Session
+                        </h3>
+                        <button id="btn-close-quick-modal" class="text-gray-400 hover:text-white text-lg">&times;</button>
+                    </div>
+                    <form id="quick-class-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Subject Name *</label>
+                            <input type="text" id="qc-subject" placeholder="e.g. Data Structures & Algorithms" required
+                                   class="w-full bg-darkbg border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 mb-1">Section</label>
+                                <input type="text" id="qc-section" placeholder="e.g. B3 or A1"
+                                       class="w-full bg-darkbg border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-300 mb-1">Window Duration</label>
+                                <select id="qc-window" class="w-full bg-darkbg border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="60" selected>60 Minutes (Full Lecture)</option>
+                                    <option value="45">45 Minutes</option>
+                                    <option value="30">30 Minutes</option>
+                                    <option value="15">15 Minutes</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1">Teacher Email</label>
+                            <input type="email" id="qc-email" value="${teacherEmail}" required
+                                   class="w-full bg-darkbg border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+                        </div>
+                        <div class="pt-2 flex items-center justify-end gap-3 border-t border-gray-700">
+                            <button type="button" id="btn-cancel-quick-modal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-lg text-xs font-semibold transition-colors">
+                                Cancel
+                            </button>
+                            <button type="submit" id="btn-submit-quick-modal" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow flex items-center gap-2 transition-colors">
+                                <i class="fas fa-play"></i> Start Class Now
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            const closeModal = () => document.getElementById('quick-class-modal')?.remove();
+            document.getElementById('btn-close-quick-modal')?.addEventListener('click', closeModal);
+            document.getElementById('btn-cancel-quick-modal')?.addEventListener('click', closeModal);
+
+            document.getElementById('quick-class-form')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const subj = document.getElementById('qc-subject').value.trim();
+                const sec = document.getElementById('qc-section').value.trim();
+                const win = parseInt(document.getElementById('qc-window').value, 10) || 60;
+                const email = document.getElementById('qc-email').value.trim();
+                const submitBtn = document.getElementById('btn-submit-quick-modal');
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Starting...';
+
+                try {
+                    const now = new Date();
+                    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+                    const fd = new FormData();
+                    fd.append('day', dayName);
+                    fd.append('hour', now.getHours());
+                    fd.append('start_minute', now.getMinutes());
+                    fd.append('allowed_window_minutes', win);
+                    fd.append('subject', subj);
+                    fd.append('section', sec);
+                    fd.append('teacher_email', email);
+
+                    await api.addTimetableEntry(fd);
+                    showToast(`Class '${subj}' started successfully! Attendance window open for ${win} min.`, 'success');
+                    closeModal();
+                    await loadLiveStatus();
+                } catch (err) {
+                    showToast(`Failed to start class: ${err.message}`, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-play"></i> Start Class Now';
+                }
+            });
+        };
+
         const loadLiveStatus = async () => {
             const serverTimeEl = document.getElementById('header-server-time');
             const todayIso = new Date().toISOString().slice(0, 10);
@@ -564,13 +676,27 @@ export default {
                 const serverTimeStr = currentSlot?.time || new Date().toLocaleTimeString();
                 if (serverTimeEl) serverTimeEl.textContent = serverTimeStr;
 
-                // Live classes resolution: use live_classes array or fallback to single class
+                // Live classes resolution: use live_classes array, or fallback to single class, or fallback to today's active attendance records
                 if (Array.isArray(currentSlot?.live_classes) && currentSlot.live_classes.length > 0) {
                     activeClasses = currentSlot.live_classes;
                 } else if (currentSlot?.class) {
                     const single = { ...currentSlot.class };
                     single.window_status = currentSlot.window_status || {};
                     activeClasses = [single];
+                } else if (cachedRecords && cachedRecords.length > 0) {
+                    const distinctSubs = [...new Set(cachedRecords.map(r => (r.subject || 'General Attendance').trim()))];
+                    activeClasses = distinctSubs.map((sub, sIdx) => {
+                        const subRecords = cachedRecords.filter(r => (r.subject || 'General Attendance').trim() === sub);
+                        const subSec = subRecords[0]?.section || 'All Sections';
+                        return {
+                            id: sIdx + 9000,
+                            subject: sub,
+                            section: subSec,
+                            branch_name: 'Live Attendance Feed',
+                            timing_12h: 'Today\'s Session',
+                            window_status: { is_open: true, window_end: 'Active' }
+                        };
+                    });
                 } else {
                     activeClasses = [];
                 }
@@ -590,6 +716,7 @@ export default {
             }
         };
 
+        document.getElementById('btn-quick-class')?.addEventListener('click', openQuickClassModal);
         document.getElementById('btn-refresh-live')?.addEventListener('click', loadLiveStatus);
         document.getElementById('live-search-input')?.addEventListener('input', (e) => {
             currentSearchQuery = e.target.value;
