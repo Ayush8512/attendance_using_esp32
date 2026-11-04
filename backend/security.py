@@ -1,8 +1,10 @@
 import hashlib
 import os
+from datetime import datetime
 from fastapi import Security, HTTPException, status, Cookie, Request
 from fastapi.security.api_key import APIKeyHeader
 from config import API_KEY
+from database import get_db
 from typing import Optional
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -37,19 +39,27 @@ async def get_api_key(
     request: Request,
     api_key_header: Optional[str] = Security(api_key_header)
 ):
-    # Check Header First
+    # Check Header First (Mobile App Client)
     if api_key_header and api_key_header in VALID_API_KEYS:
         return api_key_header
         
-    # Check Cookie (for Web Dashboard)
-    admin_session = request.cookies.get("admin_session")
-    if admin_session and (admin_session in VALID_API_KEYS or admin_session == API_KEY):
-        return admin_session
-
-    teacher_session = request.cookies.get("teacher_session")
-    if teacher_session:
-        return teacher_session
+    # Check Session Cookie (Web Dashboard Client)
+    token = request.cookies.get("session_token") or request.cookies.get("admin_session") or request.cookies.get("teacher_session")
+    if token:
+        db = await get_db()
+        try:
+            cursor = await db.execute(
+                "SELECT user_id, role, expires_at FROM web_sessions WHERE token = ?",
+                (token,)
+            )
+            row = await cursor.fetchone()
+            if row and row["expires_at"] > datetime.now().isoformat():
+                return token
+        except Exception:
+            pass
+        finally:
+            await db.close()
         
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN, detail="Could not validate API KEY or Session"
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized: Please log in to continue."
     )

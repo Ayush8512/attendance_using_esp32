@@ -29,7 +29,7 @@ const int kMinRssi = -75;
 const Duration kScanTimeout = Duration(seconds: 8);
 
 /// Default Backend URL (fallback when not configured by user)
-const String kDefaultApiBaseUrl = 'https://shading-pretzel-mascot.ngrok-free.dev';
+const String kDefaultApiBaseUrl = 'https://attendancesystemiert.dpdns.org';
 
 /// Local Push Notification Channel IDs
 const String kNotificationChannelId = 'classroom_ble_channel';
@@ -148,17 +148,8 @@ class AppSettings {
 
   static Future<String> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString(keyServerUrl);
-    if (url == null ||
-        url.trim().isEmpty ||
-        url.contains('localhost') ||
-        url.contains('127.0.0.1') ||
-        url.contains('loca.lt') ||
-        url.contains('ayush-smart-backend')) {
-      await prefs.setString(keyServerUrl, kDefaultApiBaseUrl);
-      return kDefaultApiBaseUrl;
-    }
-    return url.trim();
+    await prefs.setString(keyServerUrl, kDefaultApiBaseUrl);
+    return kDefaultApiBaseUrl;
   }
 
   static Future<void> saveProfile({

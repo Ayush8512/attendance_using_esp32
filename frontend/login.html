@@ -34,21 +34,6 @@
             fill: #2563eb;
             margin-bottom: 0.75rem;
         }
-        .hint-box {
-            background-color: rgba(30, 58, 138, 0.25);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 8px;
-            font-size: 0.8rem;
-            padding: 0.75rem;
-            margin-top: 1.25rem;
-        }
-        .otp-input {
-            letter-spacing: 4px;
-            font-family: monospace;
-            font-size: 1.1rem;
-            font-weight: bold;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -56,193 +41,39 @@
         <div class="logo">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
             <h4 class="fw-bold text-white tracking-wide">IERT PRAYAGRAJ</h4>
-            <p class="text-secondary small mb-0">Smart Attendance Portal &bull; Multi-Teacher Login</p>
+            <p class="text-secondary small mb-0">Smart Attendance Portal &bull; Faculty & Admin Login</p>
         </div>
         
         <form id="loginForm">
             <div class="mb-3">
                 <label class="form-label text-light small fw-semibold">Email or Username</label>
-                <input type="text" id="username" class="form-control bg-dark text-white border-secondary" required placeholder="e.g. gupta@college.edu or admin">
+                <input type="text" id="username" class="form-control bg-dark text-white border-secondary" required placeholder="Enter username or email" autocomplete="username">
             </div>
             <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="form-label text-light small fw-semibold mb-0">Password</label>
-                    <a href="#" id="forgotPasswordBtn" class="small text-decoration-none text-info">Forgot Password?</a>
-                </div>
-                <input type="password" id="password" class="form-control bg-dark text-white border-secondary" required placeholder="Enter password">
+                <label class="form-label text-light small fw-semibold">Password</label>
+                <input type="password" id="password" class="form-control bg-dark text-white border-secondary" required placeholder="Enter password" autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Login to Dashboard</button>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="rememberMe" checked>
+                <label class="form-check-label small text-secondary" for="rememberMe">Remember me on this browser</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">Login to Dashboard</button>
             <div id="errorMsg" class="text-danger text-center mt-3 small" style="display: none;"></div>
         </form>
-
-        <div class="hint-box text-secondary">
-            <strong class="text-light">Default Logins for Testing:</strong>
-            <ul class="mb-0 ps-3 mt-1">
-                <li><strong>Admin</strong>: <code>admin</code> / <code>admin123</code></li>
-                <li><strong>Teacher</strong>: <code>gupta@college.edu</code> / <code>teacher123</code></li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- Email OTP Forgot Password Modal -->
-    <div class="modal fade" id="forgotModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark text-light border-secondary">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title text-white fw-bold">📧 Email OTP Password Reset</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Step 1: Request OTP -->
-                    <div id="otpStep1">
-                        <p class="small text-secondary mb-3">Enter your registered faculty email address. We will send a 6-digit OTP code to verify your identity.</p>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">Registered Email Address</label>
-                            <input type="email" id="forgotEmail" class="form-control bg-dark text-white border-secondary" required placeholder="e.g. gupta@college.edu">
-                        </div>
-                        <button type="button" id="sendOtpBtn" class="btn btn-info w-100 fw-bold btn-sm py-2">
-                            Send OTP Code
-                        </button>
-                    </div>
-
-                    <!-- Step 2: Verify OTP & New Password -->
-                    <div id="otpStep2" style="display: none;">
-                        <div class="alert alert-info py-2 small mb-3">
-                            An OTP code was sent to <strong id="sentEmailDisplay"></strong>. Valid for 10 minutes.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">6-Digit OTP Code</label>
-                            <input type="text" id="otpCode" maxlength="6" class="form-control bg-dark text-white border-secondary otp-input" placeholder="123456">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold">New Password</label>
-                            <input type="password" id="forgotNewPassword" class="form-control bg-dark text-white border-secondary" minlength="4" placeholder="Minimum 4 characters">
-                        </div>
-                        <button type="button" id="verifyResetBtn" class="btn btn-warning w-100 fw-bold btn-sm py-2 mb-2">
-                            Verify OTP & Reset Password
-                        </button>
-                        <div class="text-center">
-                            <button type="button" id="resendBtn" class="btn btn-link btn-sm text-secondary p-0">Didn't receive code? Resend OTP</button>
-                        </div>
-                    </div>
-
-                    <div id="forgotMsg" class="small mt-3 text-center" style="display: none;"></div>
-                </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const forgotModal = new bootstrap.Modal(document.getElementById('forgotModal'));
-        const otpStep1 = document.getElementById('otpStep1');
-        const otpStep2 = document.getElementById('otpStep2');
-        const forgotMsg = document.getElementById('forgotMsg');
-
-        document.getElementById('forgotPasswordBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            forgotMsg.style.display = 'none';
-            otpStep1.style.display = 'block';
-            otpStep2.style.display = 'none';
-            document.getElementById('forgotEmail').value = '';
-            document.getElementById('otpCode').value = '';
-            document.getElementById('forgotNewPassword').value = '';
-            forgotModal.show();
-        });
-
-        // Step 1: Send OTP handler
-        async function handleSendOTP() {
-            const email = document.getElementById('forgotEmail').value.trim();
-            const btn = document.getElementById('sendOtpBtn');
-
-            if (!email) {
-                showMsg('Please enter your email address.', 'danger');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = 'Sending OTP...';
-            forgotMsg.style.display = 'none';
-
+        // If already logged in, redirect straight to dashboard
+        (async () => {
             try {
-                const res = await fetch('/api/auth/send-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
                 const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    document.getElementById('sentEmailDisplay').innerText = email;
-                    otpStep1.style.display = 'none';
-                    otpStep2.style.display = 'block';
-                    showMsg(data.message || 'OTP sent successfully! Please check your email.', 'success');
-                } else {
-                    showMsg(data.detail || data.message || 'Failed to send OTP.', 'danger');
+                if (data && data.status === 'success' && data.user) {
+                    window.location.replace('/');
                 }
-            } catch (err) {
-                showMsg('Network error. Please try again.', 'danger');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Send OTP Code';
-            }
-        }
-
-        document.getElementById('sendOtpBtn').addEventListener('click', handleSendOTP);
-        document.getElementById('resendBtn').addEventListener('click', handleSendOTP);
-
-        // Step 2: Verify OTP & Reset Password
-        document.getElementById('verifyResetBtn').addEventListener('click', async () => {
-            const email = document.getElementById('forgotEmail').value.trim();
-            const otp = document.getElementById('otpCode').value.trim();
-            const newPassword = document.getElementById('forgotNewPassword').value.trim();
-            const btn = document.getElementById('verifyResetBtn');
-
-            if (!otp || otp.length !== 6) {
-                showMsg('Please enter a valid 6-digit OTP code.', 'danger');
-                return;
-            }
-            if (!newPassword || newPassword.length < 4) {
-                showMsg('New password must be at least 4 characters long.', 'danger');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = 'Verifying & Updating...';
-            forgotMsg.style.display = 'none';
-
-            try {
-                const res = await fetch('/api/auth/verify-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, otp, new_password: newPassword })
-                });
-
-                const data = await res.json();
-                if (res.ok && data.status === 'success') {
-                    showMsg(data.message || 'Password reset successful! You can now log in.', 'success');
-                    setTimeout(() => {
-                        forgotModal.hide();
-                    }, 2000);
-                } else {
-                    showMsg(data.detail || data.message || 'Invalid or expired OTP code.', 'danger');
-                }
-            } catch (err) {
-                showMsg('Network error. Please try again.', 'danger');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Verify OTP & Reset Password';
-            }
-        });
-
-        function showMsg(text, type) {
-            forgotMsg.className = `small mt-3 text-center text-${type}`;
-            forgotMsg.innerText = text;
-            forgotMsg.style.display = 'block';
-        }
+            } catch (_) {}
+        })();
 
         // Login Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -259,7 +90,7 @@
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        username: document.getElementById('username').value,
+                        username: document.getElementById('username').value.trim(),
                         password: document.getElementById('password').value
                     })
                 });
@@ -269,7 +100,7 @@
                     if (data.user) {
                         localStorage.setItem('currentUser', JSON.stringify(data.user));
                     }
-                    window.location.href = '/';
+                    window.location.replace('/');
                 } else {
                     errorDiv.innerText = data.detail || data.message || 'Invalid username or password';
                     errorDiv.style.display = 'block';

@@ -62,5 +62,5 @@ TIMETABLE: Dict[Tuple[str, int], Dict[str, Any]] = {
 # Application API Security Key
 API_KEY = os.getenv("API_KEY", "default_secret_api_key_for_dev_only")
 
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '')

@@ -17,7 +17,7 @@ export function renderNavbar(currentPath) {
     const navItems = [
         { path: '#dashboard', icon: 'fa-chart-line', label: 'Dashboard', shortLabel: 'Overview' },
         { path: '#classroom', icon: 'fa-chalkboard-user', label: 'Classroom Live', shortLabel: 'Live Class' },
-        { path: '#attendance', icon: 'fa-calendar-check', label: 'Attendance Records', shortLabel: 'Register' },
+        { path: '#attendance', icon: 'fa-calendar-check', label: 'Attendance Records', shortLabel: 'Records' },
         { path: '#timetable', icon: 'fa-clock', label: 'Timetable & Windows', shortLabel: 'Timetable' },
         { path: '#students', icon: 'fa-users', label: 'Students List', shortLabel: 'Students' }
     ];

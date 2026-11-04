@@ -1,11 +1,29 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 from database import get_db
-from security import hash_password, get_api_key
+from security import hash_password
 
-router = APIRouter(prefix="/api/teachers", tags=["teachers"], dependencies=[Depends(get_api_key)])
+async def require_super_admin(request: Request):
+    """Enforce that only the Super Administrator (role='admin') can manage faculty."""
+    token = request.cookies.get("session_token") or request.cookies.get("admin_session") or request.cookies.get("teacher_session")
+    if token:
+        db = await get_db()
+        try:
+            cursor = await db.execute("SELECT role, expires_at FROM web_sessions WHERE token = ?", (token,))
+            row = await cursor.fetchone()
+            if row and row["expires_at"] > datetime.now().isoformat() and row["role"] == "admin":
+                return True
+        finally:
+            await db.close()
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Access Denied: Only the Super Administrator is authorized to access and manage faculty accounts."
+    )
+
+router = APIRouter(prefix="/api/teachers", tags=["teachers"], dependencies=[Depends(require_super_admin)])
 
 class TeacherCreate(BaseModel):
     name: str
@@ -24,11 +42,11 @@ class TeacherOut(BaseModel):
 
 @router.get("", response_model=List[TeacherOut])
 async def list_teachers():
-    """Retrieve list of all registered teacher accounts."""
+    """Retrieve list of faculty accounts. Super Admin account is never exposed in faculty lists."""
     db = await get_db()
     try:
         cursor = await db.execute(
-            "SELECT id, name, email, department, role, created_at FROM teachers ORDER BY role DESC, name ASC"
+            "SELECT id, name, email, department, role, created_at FROM teachers WHERE role != 'admin' ORDER BY name ASC"
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
@@ -37,12 +55,12 @@ async def list_teachers():
 
 @router.post("", response_model=TeacherOut, status_code=status.HTTP_201_CREATED)
 async def create_teacher(payload: TeacherCreate):
-    """Register a new teacher account."""
+    """Super Admin registers a new faculty account."""
     name = payload.name.strip()
     email = payload.email.strip().lower()
     password = payload.password.strip()
     department = payload.department.strip() if payload.department else "Faculty"
-    role = payload.role.strip().lower() if payload.role else "teacher"
+    role = "teacher"  # Force role to teacher
 
     if not name or not email or not password:
         raise HTTPException(status_code=400, detail="Name, Email, and Password are required.")
@@ -86,7 +104,7 @@ class PasswordResetPayload(BaseModel):
 
 @router.put("/{teacher_id}/reset-password")
 async def admin_reset_teacher_password(teacher_id: int, payload: PasswordResetPayload):
-    """Admin reset teacher password directly."""
+    """Super Admin resets teacher password directly."""
     new_pwd = payload.new_password.strip()
     if len(new_pwd) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
@@ -107,7 +125,7 @@ async def admin_reset_teacher_password(teacher_id: int, payload: PasswordResetPa
 
 @router.delete("/{teacher_id}")
 async def delete_teacher(teacher_id: int):
-    """Delete a teacher account by ID."""
+    """Super Admin deletes a teacher account."""
     db = await get_db()
     try:
         cur = await db.execute("SELECT id, name FROM teachers WHERE id = ?", (teacher_id,))

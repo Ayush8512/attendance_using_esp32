@@ -11,16 +11,17 @@ echo.
 echo [1/3] Cleaning up old processes...
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000.*LISTENING"') do (taskkill /PID %%a /F >nul 2>&1)
 taskkill /F /IM ngrok.exe >nul 2>&1
+taskkill /F /IM cloudflared.exe >nul 2>&1
 
-echo [2/3] Starting High-Concurrency Backend Server (with Auto-Restart Supervisor)...
+echo [2/3] Starting High-Concurrency Backend Server...
 start "Backend Server" cmd /k "d:\RFID\RUN_SERVER.bat"
-timeout /t 3 /nobreak >nul
+ping 127.0.0.1 -n 4 >nul
 
-echo [3/3] Starting Permanent Cloud Tunnel (shading-pretzel-mascot.ngrok-free.dev)...
-start "Permanent Cloud Tunnel" cmd /k "d:\RFID\RUN_TUNNEL.bat"
-timeout /t 2 /nobreak >nul
+echo [3/3] Starting Permanent Cloudflare Tunnel...
+start "Cloudflare Tunnel" cmd /k "d:\RFID\RUN_CLOUDFLARE_TUNNEL.bat"
+ping 127.0.0.1 -n 5 >nul
 
-start http://localhost:8000
+start https://attendancesystemiert.dpdns.org
 
 echo.
 echo =======================================================
@@ -28,8 +29,11 @@ echo   SYSTEM IS 100%% ONLINE AND RUNNING!
 echo =======================================================
 echo.
 echo   Permanent Mobile App URL (Fixed Forever):
-echo   https://shading-pretzel-mascot.ngrok-free.dev
+echo   https://attendancesystemiert.dpdns.org
 echo.
-echo   Keep both windows open while taking attendance.
+echo   Local Admin Portal:
+echo   http://127.0.0.1:8000
+echo.
+echo   Keep both black windows open while taking attendance.
 echo =======================================================
 pause

@@ -321,7 +321,7 @@ export default {
             const timingStr = current.timing_12h || current.time_label || `${current.hour || 0}:00`;
             const windowLabel = current.attendance_window_label || current.attendance_window || `${current.allowed_window_minutes || 10} Min Window`;
             const sectionStr = current.section && current.section !== 'ALL' ? current.section : 'All Sections';
-            const teacherStr = current.teacher_email || 'ayushpandey111223@gmail.com';
+            const teacherStr = current.teacher_email || 'Assigned Faculty';
 
             bannerEl.innerHTML = `
                 <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">

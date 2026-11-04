@@ -3,10 +3,7 @@ const API_BASE_URL = "";
 const API_KEY = "iert_sas_secure_key_2026";
 
 async function fetchWithHandler(url, options = {}) {
-    options.credentials = "include"; options.headers = {
-        ...options.headers,
-        "X-API-Key": API_KEY
-    };
+    options.credentials = "include";
     try {
         const response = await fetch(`${API_BASE_URL}${url}`, options);
         if (!response.ok) {

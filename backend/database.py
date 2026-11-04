@@ -170,34 +170,23 @@ async def init_db() -> None:
             """
         )
 
-        # Seed default teacher accounts if teachers table is empty
-        cursor = await db.execute("SELECT COUNT(*) as count FROM teachers")
-        count_row = await cursor.fetchone()
-        if count_row and count_row["count"] == 0:
-            from security import hash_password
-            from datetime import datetime
-            now_iso = datetime.now().isoformat()
-
-            default_teachers = [
-                ("Admin User", "admin@college.edu", hash_password("admin123"), "Administration", "admin"),
-                ("Dr. Gupta", "gupta@college.edu", hash_password("teacher123"), "Mathematics", "teacher"),
-                ("Prof. Verma", "verma@college.edu", hash_password("teacher123"), "Physics", "teacher"),
-                ("Er. Sharma", "sharma@college.edu", hash_password("teacher123"), "Electronics", "teacher"),
-                ("Dr. Singh", "singh@college.edu", hash_password("teacher123"), "Computer Science", "teacher"),
-                ("Prof. Patel", "patel@college.edu", hash_password("teacher123"), "Chemistry", "teacher"),
-                ("Dr. Mehta", "mehta@college.edu", hash_password("teacher123"), "Humanities", "teacher"),
-                ("Er. Kumar", "kumar@college.edu", hash_password("teacher123"), "Computer Science", "teacher"),
-                ("Prof. Rao", "rao@college.edu", hash_password("teacher123"), "Electronics", "teacher"),
-            ]
-            await db.executemany(
-                """
-                INSERT INTO teachers (name, email, password_hash, department, role, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                [(t[0], t[1], t[2], t[3], t[4], now_iso) for t in default_teachers],
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS web_sessions (
+                token       TEXT PRIMARY KEY,
+                user_id     INTEGER NOT NULL,
+                name        TEXT NOT NULL,
+                email       TEXT NOT NULL,
+                role        TEXT NOT NULL,
+                department  TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                expires_at  TEXT NOT NULL
             )
-            logger.info("Seeded default teacher accounts into SQLite database.")
+            """
+        )
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_web_sessions_token ON web_sessions(token);")
 
+        
         # Indexes for fast lookups
         for idx in [
             "CREATE INDEX IF NOT EXISTS idx_attendance_roll_no ON attendance(roll_no)",

@@ -327,8 +327,10 @@ export default {
             const modalYear = document.getElementById('modal-year');
             const subjectSelect = document.getElementById('filter-subject');
 
+            if (!branchSelect || !sectionSelect || !modalSection) return;
             // Populate Filter Section Dropdowns (A1 to G4)
             const populateSections = () => {
+                if (!sectionSelect) return;
                 sectionSelect.innerHTML = '<option value="">All Sections</option>';
                 const selB = branchSelect.value;
                 const branches = selB ? [selB] : ['A', 'B', 'C', 'D', 'E', 'F', 'G'];

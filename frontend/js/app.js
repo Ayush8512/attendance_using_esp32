@@ -45,10 +45,19 @@ async function pollLiveClassAlerts() {
 async function syncUserProfile() {
     try {
         const res = await api.getCurrentUser();
-        if (res && res.user) {
+        if (res && res.status === 'success' && res.user) {
             localStorage.setItem('currentUser', JSON.stringify(res.user));
+            return res.user;
+        } else {
+            localStorage.removeItem('currentUser');
+            window.location.replace('/login.html');
+            return null;
         }
-    } catch (_) {}
+    } catch (_) {
+        localStorage.removeItem('currentUser');
+        window.location.replace('/login.html');
+        return null;
+    }
 }
 
 function router() {
@@ -61,6 +70,20 @@ function router() {
     if (path === '#register') {
         window.location.hash = '#students';
         return;
+    }
+    if (path === '#teachers') {
+        let isAdmin = false;
+        try {
+            const raw = localStorage.getItem('currentUser');
+            if (raw) {
+                const u = JSON.parse(raw);
+                if (u && u.role === 'admin') isAdmin = true;
+            }
+        } catch (_) {}
+        if (!isAdmin) {
+            window.location.hash = '#dashboard';
+            return;
+        }
     }
     const page = routes[path] || routes['#dashboard'];
     
@@ -76,7 +99,8 @@ function router() {
     
     (async () => {
         try {
-            await syncUserProfile();
+            const user = await syncUserProfile();
+            if (!user) return;
             await page.render(appDiv, query);
             renderNavbar(path);
         } catch (error) {
@@ -87,7 +111,8 @@ function router() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await syncUserProfile();
+    const user = await syncUserProfile();
+    if (!user) return;
     renderNavbar(window.location.hash || '#dashboard');
     window.addEventListener('hashchange', router);
     router();

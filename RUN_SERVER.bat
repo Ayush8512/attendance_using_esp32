@@ -11,5 +11,5 @@ echo =======================================================
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --limit-concurrency 1000 --backlog 2048 --timeout-keep-alive 65
 echo.
 echo [SUPERVISOR] Backend stopped. Auto-recovering in 2 seconds...
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 goto server_loop

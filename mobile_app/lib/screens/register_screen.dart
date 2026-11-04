@@ -776,27 +776,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Server URL input (Hidden for students by default)
-                if (_showServerUrl) ...[
-                  TextFormField(
-                    controller: _serverController,
-                    decoration: InputDecoration(
-                      labelText: 'Server Base URL (Admin Only)',
-                      hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
-                      prefixIcon: const Icon(Icons.dns),
-                      helperText: 'Cloud Testing Link. Works on 4G Mobile Data.',
-                      helperMaxLines: 2,
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Please enter server URL' : null,
-                  ),
-                  const SizedBox(height: 12),
-                ],
+
 
                 // Restore Profile action for re-installed app
                 Container(
