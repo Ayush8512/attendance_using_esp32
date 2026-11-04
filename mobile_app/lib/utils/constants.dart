@@ -149,7 +149,13 @@ class AppSettings {
   static Future<String> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final url = prefs.getString(keyServerUrl);
-    if (url == null || url.trim().isEmpty || url.contains('localhost') || url.contains('127.0.0.1')) {
+    if (url == null ||
+        url.trim().isEmpty ||
+        url.contains('localhost') ||
+        url.contains('127.0.0.1') ||
+        url.contains('loca.lt') ||
+        url.contains('ayush-smart-backend')) {
+      await prefs.setString(keyServerUrl, kDefaultApiBaseUrl);
       return kDefaultApiBaseUrl;
     }
     return url.trim();
