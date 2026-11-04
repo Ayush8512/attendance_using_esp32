@@ -59,7 +59,7 @@ export default {
         container.innerHTML = `
             <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-gray-700/60 pb-5">
                 <div>
-                    <h2 class="text-2xl font-bold text-white tracking-tight">Attendance Summary & Live Monitor</h2>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Campus Attendance Overview</h2>
                     <p class="text-gray-400 text-sm mt-0.5">Institute of Engineering and Rural Technology, Prayagraj &bull; ${dateStr}</p>
                 </div>
                 <button id="refresh-dashboard" class="bg-cardbg border border-gray-600 hover:border-blue-500 text-gray-200 hover:text-white px-3.5 py-2 rounded-md transition-colors flex items-center gap-2 text-xs font-semibold shadow-sm">
