@@ -74,15 +74,42 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
                 working_image = candidate_img
                 break
 
+    # Stage 3: Adaptive low-light contrast enhancement (CLAHE) for dim rooms and indoor shadows
+    if not face_locations:
+        try:
+            import cv2
+            lab = cv2.cvtColor(base_image, cv2.COLOR_RGB2LAB)
+            l_chan, a_chan, b_chan = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            cl = clahe.apply(l_chan)
+            enhanced = cv2.cvtColor(cv2.merge((cl, a_chan, b_chan)), cv2.COLOR_LAB2RGB)
+            enhanced = np.ascontiguousarray(enhanced, dtype=np.uint8)
+            locs = face_recognition.face_locations(enhanced, number_of_times_to_upsample=1, model="hog")
+            if locs:
+                face_locations = locs
+                working_image = enhanced
+        except Exception as e:
+            logger.debug("CLAHE enhancement fallback skipped: %s", e)
+
     if not face_locations:
         raise ValueError(
             "No face detected in photo. Please ensure your face is well-lit, upright, and clearly visible."
         )
 
+    # Smart Primary Face Filtering: Filter out tiny background false positives (e.g. posters, books)
     if len(face_locations) > 1:
-        raise ValueError(
-            f"Multiple faces detected in photo ({len(face_locations)} faces). Please ensure only one person is in the frame."
-        )
+        # Sort face bounding boxes by area descending: (bottom - top) * (right - left)
+        face_locations.sort(key=lambda b: (b[2] - b[0]) * (b[1] - b[3]), reverse=True)
+        primary_area = (face_locations[0][2] - face_locations[0][0]) * (face_locations[0][1] - face_locations[0][3])
+        second_area = (face_locations[1][2] - face_locations[1][0]) * (face_locations[1][1] - face_locations[1][3])
+        # If the primary selfie face is at least 2.5x larger than any background artifact, select the primary face
+        if primary_area >= 2.5 * second_area:
+            logger.info("Filtered %d background artifacts; keeping primary selfie face (area=%d vs secondary=%d).", len(face_locations) - 1, primary_area, second_area)
+            face_locations = [face_locations[0]]
+        else:
+            raise ValueError(
+                f"Multiple people detected in frame ({len(face_locations)} faces). Please ensure only you are visible."
+            )
 
     # Anti-spoofing and liveness analysis (only during live attendance verification)
     if not is_registration:

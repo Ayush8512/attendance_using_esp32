@@ -288,9 +288,16 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
       Map<String, dynamic> data = {};
       try {
-        data = jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        } else {
+          data = {'detail': decoded.toString()};
+        }
       } catch (_) {
-        throw Exception('Server returned invalid response (${response.statusCode}).');
+        final clean = response.body.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+        final msg = clean.isNotEmpty && clean.length < 150 ? clean : 'Server returned error status (${response.statusCode})';
+        throw Exception(msg);
       }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
