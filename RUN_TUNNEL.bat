@@ -1,13 +1,16 @@
 @echo off
-title Localtunnel Supervisor [ayush-smart-backend]
-color 0B
+title Permanent Cloud Tunnel [shading-pretzel-mascot.ngrok-free.dev]
+color 0A
 
 echo ========================================================
-echo   LOCALTUNNEL SMART SUPERVISOR (FIXED SUBDOMAIN)
-echo   Target Subdomain: ayush-smart-backend.loca.lt
+echo   PERMANENT STATIC CLOUD TUNNEL (LIFETIME DOMAIN)
+echo   Target: https://shading-pretzel-mascot.ngrok-free.dev
 echo ========================================================
 echo.
 
-python d:\RFID\tunnel_supervisor.py
-
-pause
+:LOOP
+d:\RFID\ngrok.exe http 8000 --url https://shading-pretzel-mascot.ngrok-free.dev
+echo.
+echo Tunnel session ended. Re-establishing in 3 seconds...
+timeout /t 3 /nobreak >nul
+goto LOOP

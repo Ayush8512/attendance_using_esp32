@@ -29,7 +29,7 @@ const int kMinRssi = -75;
 const Duration kScanTimeout = Duration(seconds: 8);
 
 /// Default Backend URL (fallback when not configured by user)
-const String kDefaultApiBaseUrl = 'https://ayush-smart-backend.loca.lt';
+const String kDefaultApiBaseUrl = 'https://shading-pretzel-mascot.ngrok-free.dev';
 
 /// Local Push Notification Channel IDs
 const String kNotificationChannelId = 'classroom_ble_channel';
@@ -59,6 +59,7 @@ const Map<String, String> kBranchShortNames = {
 };
 
 Map<String, String> get kDefaultHttpHeaders => {
+  'ngrok-skip-browser-warning': 'true',
   'Bypass-Tunnel-Reminder': 'true',
   'Accept': 'application/json',
   'User-Agent': 'SmartAttendanceApp/1.0',

@@ -762,7 +762,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                   controller: _serverController,
                   decoration: InputDecoration(
                     labelText: 'Server Base URL',
-                    hintText: 'https://ayush-smart-backend.loca.lt',
+                    hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
                     prefixIcon: const Icon(Icons.dns),
                     helperText: 'Cloud Testing Link. Works on 4G Mobile Data.',
                     helperMaxLines: 2,

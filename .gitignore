@@ -38,6 +38,8 @@ backend/load_iert_roster.py
 load_iert_roster.py
 *.apk
 cloudflared.exe
+ngrok.exe
+*.zip
 
 # Hardware Secrets & Private Beacon Configs
 hardware/**/beacon_config.h

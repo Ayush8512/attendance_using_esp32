@@ -390,7 +390,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'https://ayush-smart-backend.loca.lt',
+                hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -403,7 +403,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   controller.text = kDefaultApiBaseUrl;
                 },
                 icon: const Icon(Icons.cloud_sync, size: 16),
-                label: const Text('Reset to Cloud URL (ayush-smart-backend)', style: TextStyle(fontSize: 11)),
+                label: const Text('Reset to Cloud URL (shading-pretzel-mascot)', style: TextStyle(fontSize: 11)),
               ),
             ),
             const SizedBox(height: 18),
