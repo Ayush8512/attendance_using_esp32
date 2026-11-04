@@ -465,7 +465,15 @@ export default {
                 currentClassSubject = cur.subject;
                 currentClassSection = cur.section;
                 const cleanSubj = (cur.subject || '').trim().toLowerCase();
-                filtered = filtered.filter(r => (r.subject || '').trim().toLowerCase() === cleanSubj);
+                filtered = filtered.filter(r => {
+                    const rSubj = (r.subject || '').trim().toLowerCase();
+                    if (rSubj === cleanSubj) return true;
+                    // Also match section students even if marked under General
+                    if (cur.section && r.section && r.section.trim().toUpperCase() === cur.section.trim().toUpperCase()) {
+                        if (rSubj.includes('general')) return true;
+                    }
+                    return false;
+                });
                 
                 if (titleEl) {
                     titleEl.innerHTML = `<i class="fas fa-user-check text-green-400"></i> Present Students in: <span class="text-highlight uppercase">${currentClassSubject}</span> (Sec ${cur.section || 'All'})`;

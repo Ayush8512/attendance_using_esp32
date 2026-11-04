@@ -77,7 +77,7 @@ async def get_all_live_classes_from_db(dt: Optional[datetime] = None) -> list[Di
                       CASE
                           WHEN end_hour IS NOT NULL AND end_minute IS NOT NULL
                           THEN end_hour * 60 + end_minute
-                          ELSE hour * 60 + COALESCE(start_minute, 0) + COALESCE(allowed_window_minutes, 15)
+                          ELSE hour * 60 + COALESCE(start_minute, 0) + 55
                       END
                   ) > ?
                 ORDER BY section, hour, start_minute
@@ -140,7 +140,7 @@ async def get_class_info_from_db(
                         CASE
                             WHEN end_hour IS NOT NULL AND end_minute IS NOT NULL
                             THEN end_hour * 60 + end_minute
-                            ELSE hour * 60 + COALESCE(start_minute, 0) + COALESCE(allowed_window_minutes, 15)
+                            ELSE hour * 60 + COALESCE(start_minute, 0) + 55
                         END
                     ) > ?
                 """

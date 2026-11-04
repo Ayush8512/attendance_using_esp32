@@ -1,6 +1,6 @@
 const API_BASE_URL = "";
 
-const API_KEY = "";
+const API_KEY = "iert_sas_secure_key_2026";
 
 async function fetchWithHandler(url, options = {}) {
     options.credentials = "include"; options.headers = {

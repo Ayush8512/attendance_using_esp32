@@ -1,3 +1,4 @@
+import asyncio
 import random
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Response, HTTPException, status, Request
@@ -27,7 +28,7 @@ async def login(data: LoginData, response: Response):
             (username_input, username_input)
         )
         teacher = await cursor.fetchone()
-        if teacher and verify_password(password_input, teacher["password_hash"]):
+        if teacher and (await asyncio.to_thread(verify_password, password_input, teacher["password_hash"])):
             user_payload = {
                 "id": teacher["id"],
                 "name": teacher["name"],

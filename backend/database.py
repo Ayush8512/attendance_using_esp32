@@ -7,9 +7,12 @@ logger = logging.getLogger("attendance.db")
 
 
 async def get_db() -> aiosqlite.Connection:
-    """Open and return a SQLite database connection."""
-    db = await aiosqlite.connect(DATABASE_PATH)
+    """Open and return a SQLite database connection with concurrency safety."""
+    db = await aiosqlite.connect(DATABASE_PATH, timeout=60.0)
     db.row_factory = aiosqlite.Row
+    await db.execute("PRAGMA busy_timeout = 60000;")
+    await db.execute("PRAGMA journal_mode = WAL;")
+    await db.execute("PRAGMA synchronous = NORMAL;")
     return db
 
 

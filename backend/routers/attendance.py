@@ -21,7 +21,9 @@ async def verify_attendance(
     background_tasks: BackgroundTasks,
     photo: UploadFile = File(..., description="Selfie photo for live verification"),
     roll_no: str | None = Form(None, description="Optional Roll Number for faster 1-to-1 matching"),
-    device_id: str | None = Form(None, description="Optional Device UUID for hardware binding verification")
+    device_id: str | None = Form(None, description="Optional Device UUID for hardware binding verification"),
+    subject: str | None = Form(None, description="Optional target Subject/Class"),
+    section: str | None = Form(None, description="Optional target Section")
 ):
     """
     Verify a student's identity and mark attendance.
@@ -212,6 +214,35 @@ async def verify_attendance(
         if not registered_dev and incoming_dev:
             await db.execute("UPDATE students SET device_id = ? WHERE roll_no = ?", (incoming_dev, matched_roll_no))
             await db.commit()
+
+        # Dynamic Subject Resolution: ensure attendance is linked to the student's actual timetable class
+        if subject and subject.strip():
+            current_subject = subject.strip()
+        else:
+            resolved_class = await get_class_info_from_db(
+                now,
+                section=matched_section,
+                branch_code=matched_branch,
+                year=matched_year,
+            )
+            if resolved_class and resolved_class.get("subject"):
+                current_subject = resolved_class["subject"]
+            else:
+                all_live = await get_all_live_classes_from_db(now)
+                cand = None
+                if all_live:
+                    if matched_section:
+                        cand = next((c for c in all_live if (c.get("section") or "").strip().upper() == matched_section.strip().upper()), None)
+                    if not cand and matched_branch:
+                        cand = next((c for c in all_live if (c.get("branch_code") or "").strip().upper() == matched_branch.strip().upper()), None)
+                    if not cand and len(all_live) == 1:
+                        cand = all_live[0]
+                if cand and cand.get("subject"):
+                    current_subject = cand["subject"]
+                elif class_info and class_info.get("subject") and class_info.get("subject") != "General Attendance":
+                    current_subject = class_info["subject"]
+                else:
+                    current_subject = "General Attendance"
 
         # --- Prevent duplicate attendance for the same student in THIS subject on today ---
         today = date.today().isoformat()
