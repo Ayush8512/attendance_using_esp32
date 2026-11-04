@@ -65,29 +65,32 @@ async def verify_attendance(
     )
 
     if not class_info:
-        # Resolve meaningful subject name from curriculum timetable or student branch
-        resolved_subj = "Academic Class"
         cfg_info = get_class_info(now)
         if cfg_info and cfg_info.get("subject"):
-            resolved_subj = cfg_info["subject"]
-        elif student_branch and student_branch in BRANCH_METADATA:
-            resolved_subj = f"{BRANCH_METADATA[student_branch]['name']} Class"
-        elif student_branch:
-            resolved_subj = f"Branch {student_branch} Class"
+            class_info = {
+                "subject": cfg_info["subject"],
+                "hour": cfg_info.get("hour", now.hour),
+                "start_minute": cfg_info.get("start_minute", 0),
+                "end_hour": cfg_info.get("end_hour"),
+                "end_minute": cfg_info.get("end_minute"),
+                "allowed_window_minutes": cfg_info.get("allowed_window_minutes", 20),
+                "section": student_section or "",
+                "branch_code": student_branch or "",
+                "branch_name": "",
+                "year": student_year or 0,
+            }
+        else:
+            live_classes = await get_all_live_classes_from_db(now)
+            if live_classes:
+                class_info = live_classes[0]
 
-        class_info = {
-            "subject": resolved_subj,
-            "hour": now.hour,
-            "start_minute": 0,
-            "end_hour": None,
-            "end_minute": None,
-            "allowed_window_minutes": 1440,
-            "section": student_section or "",
-            "branch_code": student_branch or "",
-            "branch_name": "",
-            "year": student_year or 0,
-        }
+    if not class_info:
+        raise HTTPException(
+            status_code=403,
+            detail="No scheduled class is active right now for your section. Attendance can only be marked during scheduled class hours within the allowed time limit.",
+        )
 
+    # Strictly enforce the allowed window time limit
     is_allowed, time_err, window_end_str = check_attendance_window(class_info, now)
     if not is_allowed:
         raise HTTPException(
