@@ -25,9 +25,10 @@ class StudentRegisterScreen extends StatefulWidget {
   State<StudentRegisterScreen> createState() => _StudentRegisterScreenState();
 }
 
-class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
+class _StudentRegisterScreenState extends State<StudentRegisterScreen> with WidgetsBindingObserver {
   CameraController? _cameraController;
   bool _isCameraReady = false;
+  String _cameraErrorMessage = '';
   XFile? _capturedFacePhoto;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -41,7 +42,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   Map<String, dynamic>? _matchedRosterStudent;
   Timer? _debounceTimer;
 
-
   bool _isRegistering = false;
   bool _isRestoring = false;
   bool _showServerUrl = false;
@@ -49,9 +49,21 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _requestAllPermissions();
+    WidgetsBinding.instance.addObserver(this);
     _loadExistingProfile();
-    _initializeCamera();
+    _setupPermissionsAndCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_isCameraReady) {
+      _initializeCamera();
+    }
+  }
+
+  Future<void> _setupPermissionsAndCamera() async {
+    await _requestAllPermissions();
+    await _initializeCamera();
   }
 
   Future<void> _requestAllPermissions() async {
@@ -95,41 +107,73 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    if (globalCameras.isEmpty) {
-      try {
-        globalCameras = await availableCameras();
-      } catch (e) {
-        debugPrint('[Camera] Init error: $e');
+    try {
+      var status = await Permission.camera.status;
+      if (!status.isGranted) {
+        status = await Permission.camera.request();
+      }
+      if (!status.isGranted) {
+        if (mounted) {
+          setState(() {
+            _isCameraReady = false;
+            _cameraErrorMessage = 'Camera permission is required to capture selfie.';
+          });
+        }
         return;
       }
-    }
 
-    CameraDescription? frontCamera;
-    for (final cam in globalCameras) {
-      if (cam.lensDirection == CameraLensDirection.front) {
-        frontCamera = cam;
-        break;
+      if (globalCameras.isEmpty) {
+        try {
+          globalCameras = await availableCameras();
+        } catch (e) {
+          debugPrint('[Camera] Init error: $e');
+        }
       }
-    }
-    frontCamera ??= globalCameras.isNotEmpty ? globalCameras.first : null;
 
-    if (frontCamera == null) return;
+      CameraDescription? frontCamera;
+      for (final cam in globalCameras) {
+        if (cam.lensDirection == CameraLensDirection.front) {
+          frontCamera = cam;
+          break;
+        }
+      }
+      frontCamera ??= globalCameras.isNotEmpty ? globalCameras.first : null;
 
-    final controller = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
+      if (frontCamera == null) {
+        if (mounted) {
+          setState(() {
+            _isCameraReady = false;
+            _cameraErrorMessage = 'No front camera found on this device.';
+          });
+        }
+        return;
+      }
 
-    try {
+      try {
+        await _cameraController?.dispose();
+      } catch (_) {}
+
+      final controller = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+
       await controller.initialize();
       if (!mounted) return;
       setState(() {
         _cameraController = controller;
         _isCameraReady = true;
+        _cameraErrorMessage = '';
       });
     } catch (e) {
       debugPrint('[Camera] Error: $e');
+      if (mounted) {
+        setState(() {
+          _isCameraReady = false;
+          _cameraErrorMessage = 'Camera error ($e). Tap to retry.';
+        });
+      }
     }
   }
 
@@ -149,6 +193,7 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounceTimer?.cancel();
     _nameController.dispose();
     _rollController.dispose();
@@ -156,7 +201,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
     _cameraController?.dispose();
     super.dispose();
   }
-
 
   void _onRollChanged(String value) {
     _debounceTimer?.cancel();
@@ -172,17 +216,31 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
   Future<void> _lookupRosterStudent(String query) async {
     final serverUrl = _serverController.text.trim();
-    if (serverUrl.isEmpty || query.trim().isEmpty) return;
+    final cleanQ = query.trim();
+    if (serverUrl.isEmpty || cleanQ.isEmpty) return;
 
     setState(() => _isSearchingRoster = true);
     try {
-      final uri = Uri.parse('$serverUrl/roster/lookup/${Uri.encodeComponent(query.trim())}');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
+      String url = '$serverUrl/roster/lookup/${Uri.encodeComponent(cleanQ)}';
+      final params = <String, String>{};
+      if (_selectedBranchCode != null && _selectedBranchCode!.isNotEmpty) {
+        params['branch_code'] = _selectedBranchCode!;
+      }
+      if (_selectedSection != null && _selectedSection!.isNotEmpty) {
+        params['section'] = _selectedSection!;
+      }
+      if (params.isNotEmpty) {
+        url += '?${Uri(queryParameters: params).query}';
+      }
+
+      final uri = Uri.parse(url);
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 12));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         if (data['found'] == true && data['student'] != null) {
           final s = data['student'] as Map<String, dynamic>;
           if (mounted) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
             setState(() {
               _matchedRosterStudent = s;
               _nameController.text = s['name'] ?? _nameController.text;
@@ -193,13 +251,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 _rollController.text = s['aktu_roll_no'].toString();
               }
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Verified Roster: ${s['name']} (${s['branch_name']} - ${s['section']})'),
-                backgroundColor: Colors.green.shade700,
-                duration: const Duration(seconds: 3),
-              ),
-            );
           }
         } else {
           if (mounted) setState(() => _matchedRosterStudent = null);
@@ -559,8 +610,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
         .toList();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -795,9 +844,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-
-
-
                 // Face Photo Capture Section
                 Text(
                   'Face Photo Registration',
@@ -861,8 +907,42 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                                 ),
                               ],
                             )
-                          : const Center(
-                              child: CircularProgressIndicator(color: Colors.white),
+                          : InkWell(
+                              onTap: _initializeCamera,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_cameraErrorMessage.isNotEmpty) ...[
+                                        const Icon(Icons.videocam_off, color: Colors.amberAccent, size: 36),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _cameraErrorMessage,
+                                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        FilledButton.icon(
+                                          onPressed: _initializeCamera,
+                                          icon: const Icon(Icons.refresh),
+                                          label: const Text('Start Camera'),
+                                        ),
+                                      ] else ...[
+                                        const CircularProgressIndicator(color: Colors.white),
+                                        const SizedBox(height: 10),
+                                        const Text('Starting camera...', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                        const SizedBox(height: 6),
+                                        TextButton(
+                                          onPressed: _initializeCamera,
+                                          child: const Text('Tap to Retry', style: TextStyle(color: Colors.white)),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
                 ),
                 const SizedBox(height: 24),
