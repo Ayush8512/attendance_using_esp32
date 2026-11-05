@@ -30,6 +30,8 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> with Widg
   bool _isCameraReady = false;
   String _cameraErrorMessage = '';
   XFile? _capturedFacePhoto;
+  int _selectedCameraIndex = 0;
+  List<CameraDescription> _availableCameras = [];
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _rollController = TextEditingController();
@@ -51,36 +53,30 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> with Widg
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadExistingProfile();
-    _setupPermissionsAndCamera();
+    _initializeCamera();
+    _requestAppPermissionsNonBlocking();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_isCameraReady) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _cameraController?.dispose();
+      _cameraController = null;
+      if (mounted) setState(() => _isCameraReady = false);
+    } else if (state == AppLifecycleState.resumed && !_isCameraReady) {
       _initializeCamera();
     }
   }
 
-  Future<void> _setupPermissionsAndCamera() async {
-    await _requestAllPermissions();
-    await _initializeCamera();
-  }
-
-  Future<void> _requestAllPermissions() async {
+  Future<void> _requestAppPermissionsNonBlocking() async {
     try {
-      final statuses = await [
-        Permission.locationWhenInUse,
+      await [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
-        Permission.camera,
         Permission.notification,
       ].request();
-
-      if (statuses[Permission.locationWhenInUse]?.isGranted == true) {
-        await Permission.locationAlways.request();
-      }
     } catch (e) {
-      debugPrint('[PERMISSIONS] Request error: $e');
+      debugPrint('[PERMISSIONS] Non-blocking request error: $e');
     }
   }
 
@@ -116,45 +112,47 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> with Widg
         if (mounted) {
           setState(() {
             _isCameraReady = false;
-            _cameraErrorMessage = 'Camera permission is required to capture selfie.';
+            _cameraErrorMessage = 'Camera permission is required to capture selfie.\nPlease allow camera access.';
           });
         }
         return;
       }
 
-      if (globalCameras.isEmpty) {
-        try {
-          globalCameras = await availableCameras();
-        } catch (e) {
-          debugPrint('[Camera] Init error: $e');
-        }
+      List<CameraDescription> cams = [];
+      try {
+        cams = await availableCameras();
+      } catch (e) {
+        debugPrint('[Camera] availableCameras error: $e');
+        cams = globalCameras;
       }
-
-      CameraDescription? frontCamera;
-      for (final cam in globalCameras) {
-        if (cam.lensDirection == CameraLensDirection.front) {
-          frontCamera = cam;
-          break;
-        }
+      if (cams.isEmpty) {
+        cams = globalCameras;
       }
-      frontCamera ??= globalCameras.isNotEmpty ? globalCameras.first : null;
+      _availableCameras = cams;
 
-      if (frontCamera == null) {
+      if (_availableCameras.isEmpty) {
         if (mounted) {
           setState(() {
             _isCameraReady = false;
-            _cameraErrorMessage = 'No front camera found on this device.';
+            _cameraErrorMessage = 'No camera found on this device.';
           });
         }
         return;
       }
+
+      if (_cameraController == null) {
+        int frontIdx = _availableCameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+        _selectedCameraIndex = frontIdx != -1 ? frontIdx : 0;
+      }
+
+      final cameraToUse = _availableCameras[_selectedCameraIndex % _availableCameras.length];
 
       try {
         await _cameraController?.dispose();
       } catch (_) {}
 
       final controller = CameraController(
-        frontCamera,
+        cameraToUse,
         ResolutionPreset.medium,
         enableAudio: false,
       );
@@ -175,6 +173,12 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> with Widg
         });
       }
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_availableCameras.length < 2) return;
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % _availableCameras.length;
+    await _initializeCamera();
   }
 
   Future<void> _capturePhoto() async {
@@ -897,6 +901,17 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> with Widg
                                     ),
                                   ),
                                 ),
+                                if (_availableCameras.length > 1)
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: IconButton(
+                                      onPressed: _switchCamera,
+                                      icon: const Icon(Icons.flip_camera_android, color: Colors.white),
+                                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                                      tooltip: 'Switch Camera',
+                                    ),
+                                  ),
                                 Positioned(
                                   bottom: 12,
                                   child: FilledButton.icon(

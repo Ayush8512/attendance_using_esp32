@@ -4,6 +4,7 @@ from datetime import datetime
 from datetime import date
 from utils import get_ist_now
 import json
+import os
 from database import get_db, db_write_lock
 from config import BRANCH_METADATA, FACE_MATCH_TOLERANCE
 from utils import get_year_label
@@ -297,10 +298,15 @@ async def verify_attendance(
 
         # --- Mark attendance ---
         now_time_str = now.strftime("%H:%M:%S")
+        # Check if diagnostic photo cache is enabled for this student
+        save_photo_diagnostic = bool(student.get("cache_flag") == 1)
+
         # Enqueue the write operation to background queue
         background_tasks.add_task(
             save_attendance_background,
-            matched_roll_no, today, now_time_str, current_subject, matched_section, matched_branch, matched_year
+            matched_roll_no, today, now_time_str, current_subject, matched_section, matched_branch, matched_year,
+            photo_bytes if save_photo_diagnostic else None,
+            save_photo_diagnostic
         )
     finally:
         await db.close()
@@ -484,7 +490,17 @@ async def add_manual_attendance(payload: AttendanceManualCreate):
     finally:
         await db.close()
 
-async def save_attendance_background(roll_no: str, today: str, time_str: str, subject: str, section: str, branch: str, year: int):
+async def save_attendance_background(
+    roll_no: str,
+    today: str,
+    time_str: str,
+    subject: str,
+    section: str,
+    branch: str,
+    year: int,
+    photo_bytes: Optional[bytes] = None,
+    save_photo: bool = False,
+):
     """Background task to safely save attendance to DB without blocking the API response."""
     async with db_write_lock:
         db = await get_db()
@@ -500,5 +516,20 @@ async def save_attendance_background(roll_no: str, today: str, time_str: str, su
             logger.error("Background attendance save failed: %s", e)
         finally:
             await db.close()
+
+    # Zero-load diagnostic cache: save photo asynchronously only when toggle is explicitly enabled
+    if save_photo and photo_bytes:
+        try:
+            cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", ".cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            safe_time = time_str.replace(":", "-")
+            safe_subj = "".join(c for c in subject if c.isalnum() or c in ("-", "_"))
+            filename = f"{roll_no}_{today}_{safe_time}_{safe_subj}.jpg"
+            file_path = os.path.join(cache_dir, filename)
+            with open(file_path, "wb") as f:
+                f.write(photo_bytes)
+            logger.info("Diagnostic photo snapshot saved: %s", filename)
+        except Exception as err:
+            logger.warning("Failed to save diagnostic photo: %s", err)
 
 

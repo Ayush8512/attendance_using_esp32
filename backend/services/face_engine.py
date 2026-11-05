@@ -216,12 +216,23 @@ def _sync_extract_face_encoding(contents: bytes, is_registration: bool = False) 
     return encodings[0].tolist()
 
 
+_face_extraction_lock = None
+
+def get_face_extraction_lock() -> asyncio.Lock:
+    global _face_extraction_lock
+    if _face_extraction_lock is None:
+        _face_extraction_lock = asyncio.Lock()
+    return _face_extraction_lock
+
 async def extract_face_encoding(contents: bytes, is_registration: bool = False) -> List[float]:
     """
-    Extract 128-d face encoding asynchronously by delegating CPU computation to a thread pool.
-    Guarantees that the FastAPI asyncio event loop is NEVER blocked.
+    Serialize CPU-intensive Dlib neural net calls using an async lock.
+    Eliminates Dlib C++ multithreading memory corruption (0xC0000005) while keeping
+    the FastAPI event loop fully responsive for concurrent traffic.
     """
-    return await asyncio.to_thread(_sync_extract_face_encoding, contents, is_registration)
+    lock = get_face_extraction_lock()
+    async with lock:
+        return await asyncio.to_thread(_sync_extract_face_encoding, contents, is_registration)
 
 
 def compute_match_confidence(distance: float, tolerance: float = FACE_MATCH_TOLERANCE) -> float:
@@ -304,6 +315,7 @@ class FaceIndex:
                         "year": s.get("year") or 1,
                         "class_roll_no": (s.get("class_roll_no") or "").strip(),
                         "is_locked": bool(s.get("is_locked", 1)),
+                        "cache_flag": int(s.get("cache_flag") or 0),
                         "face_encoding": enc,
                     }
 
@@ -364,6 +376,12 @@ class FaceIndex:
                     self.encodings_matrix = enc_vec
                 else:
                     self.encodings_matrix = np.vstack([self.encodings_matrix, enc_vec])
+
+    def update_student_cache_flag(self, roll_no: str, flag: int) -> None:
+        with self._lock:
+            clean = roll_no.strip().upper()
+            if clean in self.student_metadata:
+                self.student_metadata[clean]["cache_flag"] = int(flag)
 
     def remove_student(self, roll_no: str) -> None:
         """Remove student from memory on deletion."""

@@ -14,11 +14,13 @@ class FaceScanScreen extends StatefulWidget {
   State<FaceScanScreen> createState() => _FaceScanScreenState();
 }
 
-class _FaceScanScreenState extends State<FaceScanScreen> {
+class _FaceScanScreenState extends State<FaceScanScreen> with WidgetsBindingObserver {
   CameraController? _cameraController;
   bool _isCameraReady = false;
   bool _isProcessing = false;
   bool _isSuccess = false;
+  int _selectedCameraIndex = 0;
+  List<CameraDescription> _availableCameras = [];
 
   String _statusMessage = 'Align your face in the oval and tap "Mark Attendance".';
   Color _statusColor = const Color(0xFF0F3460);
@@ -32,8 +34,20 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
     _initializeCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _cameraController?.dispose();
+      _cameraController = null;
+      if (mounted) setState(() => _isCameraReady = false);
+    } else if (state == AppLifecycleState.resumed && !_isCameraReady) {
+      _initializeCamera();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -56,31 +70,34 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    if (globalCameras.isEmpty) {
-      try {
-        globalCameras = await availableCameras();
-      } catch (e) {
-        _setStatus('No cameras available on this device.', Colors.red);
-        return;
-      }
+    List<CameraDescription> cams = [];
+    try {
+      cams = await availableCameras();
+    } catch (e) {
+      debugPrint('[Camera] availableCameras error: $e');
+      cams = globalCameras;
     }
+    if (cams.isEmpty) cams = globalCameras;
+    _availableCameras = cams;
 
-    CameraDescription? frontCamera;
-    for (final cam in globalCameras) {
-      if (cam.lensDirection == CameraLensDirection.front) {
-        frontCamera = cam;
-        break;
-      }
-    }
-    frontCamera ??= globalCameras.isNotEmpty ? globalCameras.first : null;
-
-    if (frontCamera == null) {
-      _setStatus('No front camera found on this device.', Colors.red);
+    if (_availableCameras.isEmpty) {
+      _setStatus('No cameras available on this device.', Colors.red);
       return;
     }
 
+    if (_cameraController == null) {
+      int frontIdx = _availableCameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+      _selectedCameraIndex = frontIdx != -1 ? frontIdx : 0;
+    }
+
+    final cameraToUse = _availableCameras[_selectedCameraIndex % _availableCameras.length];
+
+    try {
+      await _cameraController?.dispose();
+    } catch (_) {}
+
     final controller = CameraController(
-      frontCamera,
+      cameraToUse,
       ResolutionPreset.medium,
       enableAudio: false,
     );
@@ -93,8 +110,14 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
         _isCameraReady = true;
       });
     } catch (e) {
-      _setStatus('Camera error: $e', Colors.red);
+      _setStatus('Camera initialization error: $e', Colors.red);
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_availableCameras.length < 2) return;
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % _availableCameras.length;
+    await _initializeCamera();
   }
 
   void _setStatus(String message, Color color) {
@@ -217,6 +240,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cameraController?.dispose();
     super.dispose();
   }

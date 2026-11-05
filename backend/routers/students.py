@@ -369,7 +369,7 @@ async def list_students(
     """List all registered students with biometric lock status, branch, and section."""
     db = await get_db()
     try:
-        query = "SELECT roll_no, name, is_locked, device_id, branch_code, branch_name, section, year, class_roll_no, created_at, updated_at FROM students WHERE 1=1"
+        query = "SELECT roll_no, name, is_locked, device_id, branch_code, branch_name, section, year, class_roll_no, cache_flag, created_at, updated_at FROM students WHERE 1=1"
         params = []
         if branch_code:
             query += " AND branch_code = ?"
@@ -400,6 +400,7 @@ async def list_students(
             "section": row["section"] or "",
             "year": row["year"] or 1,
             "class_roll_no": row["class_roll_no"] or "",
+            "cache_flag": int(row["cache_flag"] or 0),
             "created_at": row["created_at"] or "",
             "updated_at": row["updated_at"] or "",
         }

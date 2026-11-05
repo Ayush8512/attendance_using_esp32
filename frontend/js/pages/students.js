@@ -349,6 +349,17 @@ export default {
                                     <i class="fas fa-lock"></i> Lock
                                    </button>`
                             }
+                            ${s.cache_flag === 1
+                                ? `<button data-roll="${s.roll_no}" class="btn-toggle-cache text-purple-300 hover:text-white bg-purple-900/50 hover:bg-purple-900 border border-purple-500/50 rounded-md px-2 py-1 transition-colors text-xs inline-flex items-center gap-1" title="Photo snapshot cache is ENABLED for this student. Click to turn OFF (pure 128-vector).">
+                                    <i class="fas fa-camera"></i> Snapshot: ON
+                                   </button>
+                                   <button data-roll="${s.roll_no}" data-name="${s.name || ''}" class="btn-view-cache text-purple-300 hover:text-white hover:bg-purple-800 px-2 py-1 border border-purple-500/40 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="View captured attendance photos">
+                                    <i class="fas fa-images"></i> Photos
+                                   </button>`
+                                : `<button data-roll="${s.roll_no}" class="btn-toggle-cache text-gray-400 hover:text-gray-200 hover:bg-gray-700 px-2 py-1 border border-gray-600 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Photo snapshot cache is OFF (pure 128-vector mode). Click to turn ON.">
+                                    <i class="fas fa-camera"></i> Snapshot: OFF
+                                   </button>`
+                            }
                             <button data-roll="${s.roll_no}" class="btn-reset-dev text-slate-300 hover:text-white hover:bg-slate-700 px-2 py-1 border border-slate-600 rounded-md transition-colors text-xs inline-flex items-center gap-1" title="Reset phone binding so student can login on new phone">
                                 <i class="fas fa-sync-alt"></i> Reset Device
                             </button>
@@ -405,6 +416,34 @@ export default {
                     } catch (err) {
                         showToast(`Failed to reset device: ${err.message}`, "error");
                         btn.disabled = false;
+                    }
+                });
+            });
+
+            tbody.querySelectorAll('.btn-toggle-cache').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    try {
+                        btn.disabled = true;
+                        const res = await api.toggleStudentCache(roll);
+                        showToast(res.message, "success");
+                        loadCurrentView();
+                    } catch (err) {
+                        showToast(`Failed to toggle photo cache: ${err.message}`, "error");
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            tbody.querySelectorAll('.btn-view-cache').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roll = btn.getAttribute('data-roll');
+                    const name = btn.getAttribute('data-name');
+                    try {
+                        const res = await api.getStudentCachedPhotos(roll);
+                        openCachedPhotosModal(roll, name, res.photos || []);
+                    } catch (err) {
+                        showToast(`Failed to load photos: ${err.message}`, "error");
                     }
                 });
             });

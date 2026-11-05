@@ -56,6 +56,10 @@ export const api = {
     lockStudent: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/lock`, {
         method: "POST"
     }),
+    toggleStudentCache: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/toggle-cache`, {
+        method: "POST"
+    }),
+    getStudentCachedPhotos: (rollNo) => fetchWithHandler(`/admin/students/${encodeURIComponent(rollNo)}/cached-photos`),
     getAdminSettings: () => fetchWithHandler("/admin/settings"),
     toggleRegistration: (open) => fetchWithHandler("/admin/settings/registration", {
         method: "POST",

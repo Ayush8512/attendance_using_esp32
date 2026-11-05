@@ -1,4 +1,7 @@
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
+import os
+from services.face_engine import global_face_index
 from typing import Optional
 from datetime import datetime, date
 import json
@@ -248,3 +251,61 @@ Institute of Engineering and Rural Technology (IERT), Prayagraj
         logger.error("End class failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post('/admin/students/{roll_no:path}/toggle-cache')
+async def toggle_student_cache(roll_no: str):
+    """Toggle diagnostic photo cache for a student. When 1, live attendance photos are saved; when 0, reverts to pure 128-vector only."""
+    clean_roll = roll_no.strip().upper()
+    db = await get_db()
+    try:
+        cur = await db.execute("SELECT cache_flag, name FROM students WHERE roll_no = ?", (clean_roll,))
+        row = await cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Student '{clean_roll}' not found.")
+        new_flag = 0 if int(row["cache_flag"] or 0) == 1 else 1
+        await db.execute("UPDATE students SET cache_flag = ? WHERE roll_no = ?", (new_flag, clean_roll))
+        await db.commit()
+        global_face_index.update_student_cache_flag(clean_roll, new_flag)
+        state_str = "ENABLED" if new_flag == 1 else "DISABLED"
+        return {
+            "status": "success",
+            "roll_no": clean_roll,
+            "name": row["name"],
+            "cache_flag": new_flag,
+            "message": f"Diagnostic photo cache {state_str} for {row['name']} ({clean_roll}).",
+        }
+    finally:
+        await db.close()
+
+@router.get('/admin/students/{roll_no:path}/cached-photos')
+async def list_cached_photos(roll_no: str):
+    """List saved diagnostic photos for a specific student."""
+    clean_roll = roll_no.strip().upper()
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", ".cache")
+    if not os.path.exists(cache_dir):
+        return {"status": "success", "roll_no": clean_roll, "photos": []}
+    
+    files = []
+    prefix = f"{clean_roll}_"
+    for fname in os.listdir(cache_dir):
+        if fname.startswith(prefix) and fname.endswith(".jpg"):
+            fpath = os.path.join(cache_dir, fname)
+            stat = os.stat(fpath)
+            files.append({
+                "filename": fname,
+                "url": f"/admin/cached-photos/{fname}",
+                "size_kb": round(stat.st_size / 1024, 1),
+                "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            })
+    files.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"status": "success", "roll_no": clean_roll, "photos": files}
+
+@router.get('/admin/cached-photos/{filename}')
+async def serve_cached_photo(filename: str):
+    """Serve a diagnostic photo to authorized super admin."""
+    safe_name = os.path.basename(filename)
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "reports", ".cache")
+    filepath = os.path.join(cache_dir, safe_name)
+    if not os.path.isfile(filepath):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(filepath, media_type="image/jpeg")
