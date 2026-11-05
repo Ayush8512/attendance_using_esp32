@@ -1,24 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
-import '../services/background_service.dart';
-import 'register_screen.dart';
-import 'attendance_screen.dart';
-import 'face_scan_screen.dart';
-import 'analytics_screen.dart';
+
 class FaceScanScreen extends StatefulWidget {
   const FaceScanScreen({super.key});
 
@@ -30,14 +18,10 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   CameraController? _cameraController;
   bool _isCameraReady = false;
   bool _isProcessing = false;
-  
-  // Liveness (Blink Detection) State
-  FaceDetector? _faceDetector;
-  bool _isDetecting = false;
-  int _blinkState = 0; // 0: Start, 1: Eyes Open, 2: Eyes Closed (Blinking), 3: Blink Finished (Capture)
+  bool _isSuccess = false;
 
-  String _statusMessage = 'Looking for face... Please BLINK to capture.';
-  Color _statusColor = Colors.black87;
+  String _statusMessage = 'Align your face in the oval and tap "Mark Attendance".';
+  Color _statusColor = const Color(0xFF0F3460);
   String _serverUrl = kDefaultApiBaseUrl;
   String _studentName = '';
   String _studentRoll = '';
@@ -48,15 +32,27 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   @override
   void initState() {
     super.initState();
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableClassification: true, // Needed for eye open probability
-        enableTracking: true,
-        performanceMode: FaceDetectorMode.fast,
-      ),
-    );
     _loadSettings();
     _initializeCamera();
+  }
+
+  Future<void> _loadSettings() async {
+    final server = await AppSettings.getServerUrl();
+    final name = await AppSettings.getStudentName();
+    final roll = await AppSettings.getStudentRoll();
+    final branch = await AppSettings.getStudentBranch();
+    final section = await AppSettings.getStudentSection();
+    final year = await AppSettings.getStudentYear();
+    if (mounted) {
+      setState(() {
+        _serverUrl = server.isNotEmpty ? server : kDefaultApiBaseUrl;
+        _studentName = name;
+        _studentRoll = roll;
+        _studentBranch = branch;
+        _studentSection = section;
+        _studentYear = year;
+      });
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -79,7 +75,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
     frontCamera ??= globalCameras.isNotEmpty ? globalCameras.first : null;
 
     if (frontCamera == null) {
-      _setStatus('No front camera found.', Colors.red);
+      _setStatus('No front camera found on this device.', Colors.red);
       return;
     }
 
@@ -87,117 +83,17 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
     );
 
     try {
       await controller.initialize();
       if (!mounted) return;
-      
       setState(() {
         _cameraController = controller;
         _isCameraReady = true;
       });
-
-      // Start Image Stream for Blink Detection
-      controller.startImageStream(_processCameraImage);
-
     } catch (e) {
       _setStatus('Camera error: $e', Colors.red);
-    }
-  }
-
-  void _processCameraImage(CameraImage image) async {
-    if (_isProcessing || _isDetecting || _blinkState == 3 || !mounted) return;
-    _isDetecting = true;
-
-    try {
-      final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage == null) {
-        _isDetecting = false;
-        return;
-      }
-
-      final faces = await _faceDetector!.processImage(inputImage);
-      
-      if (faces.isEmpty) {
-        if (_blinkState != 0) {
-          _blinkState = 0; // reset if face lost
-          _setStatus('Face lost. Align your face.', Colors.orange.shade800);
-        }
-      } else {
-        final face = faces.first;
-        final leftEyeOpen = face.leftEyeOpenProbability ?? 1.0;
-        final rightEyeOpen = face.rightEyeOpenProbability ?? 1.0;
-
-        if (_blinkState == 0 && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
-          _blinkState = 1; // Eyes are open, waiting for blink
-          _setStatus('Face detected. Please BLINK naturally to capture.', Colors.indigo);
-        } 
-        else if (_blinkState == 1 && (leftEyeOpen < 0.25 || rightEyeOpen < 0.25)) {
-          _blinkState = 2; // Eyes closed (Blinking)
-          _setStatus('Blink detected! Capturing...', Colors.green.shade800);
-        } 
-        else if (_blinkState == 2 && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
-          _blinkState = 3; // Eyes opened again. Trigger Capture!
-          // Stop stream and capture
-          await _cameraController?.stopImageStream();
-          _captureAndVerify();
-        }
-      }
-    } catch (e) {
-      debugPrint("ML Kit Error: $e");
-    }
-
-    _isDetecting = false;
-  }
-
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    final camera = _cameraController;
-    if (camera == null) return null;
-
-    final rotation = InputImageRotationValue.fromRawValue(camera.description.sensorOrientation);
-    if (rotation == null) return null;
-
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null) return null;
-
-    if (image.planes.isEmpty) return null;
-
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
-
-    final metadata = InputImageMetadata(
-      size: imageSize,
-      rotation: rotation,
-      format: format,
-      bytesPerRow: image.planes[0].bytesPerRow,
-    );
-
-    return InputImage.fromBytes(bytes: bytes, metadata: metadata);
-  }
-
-  Future<void> _loadSettings() async {
-    final server = await AppSettings.getServerUrl();
-    final name = await AppSettings.getStudentName();
-    final roll = await AppSettings.getStudentRoll();
-    final branch = await AppSettings.getStudentBranch();
-    final section = await AppSettings.getStudentSection();
-    final year = await AppSettings.getStudentYear();
-    if (mounted) {
-      setState(() {
-        _serverUrl = server;
-        _studentName = name;
-        _studentRoll = roll;
-        _studentBranch = branch;
-        _studentSection = section;
-        _studentYear = year;
-      });
     }
   }
 
@@ -210,37 +106,50 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   }
 
   Future<void> _captureAndVerify() async {
+    if (_isProcessing) return;
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      _setStatus('Camera is not ready.', Colors.red);
+      _setStatus('Camera is not ready yet. Please wait...', Colors.red);
       return;
     }
 
-    setState(() => _isProcessing = true);
-    _setStatus('Liveness Confirmed! Uploading to Server...', Colors.indigo);
+    setState(() {
+      _isProcessing = true;
+      _isSuccess = false;
+    });
+    _setStatus('Capturing photo and verifying face...', const Color(0xFF0F3460));
 
+    String? tempFilePath;
     try {
       final XFile image = await _cameraController!.takePicture();
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/face_scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await File(image.path).copy(path);
+      tempFilePath = '${dir.path}/face_scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await File(image.path).copy(tempFilePath);
 
-      _setStatus('Checking time window & verifying face...', Colors.indigo);
+      _setStatus('Verifying face with server & time window...', const Color(0xFF0F3460));
 
       final deviceId = await AppSettings.getDeviceId();
       final uri = Uri.parse('$_serverUrl/verify');
       final request = http.MultipartRequest('POST', uri)
         ..headers.addAll(kDefaultHttpHeaders)
-        ..files.add(await http.MultipartFile.fromPath('photo', path));
+        ..files.add(await http.MultipartFile.fromPath('photo', tempFilePath));
+
       if (_studentRoll.isNotEmpty) {
         request.fields['roll_no'] = _studentRoll;
       }
-      request.fields['device_id'] = deviceId;
+      if (deviceId.isNotEmpty) {
+        request.fields['device_id'] = deviceId;
+      }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final streamed = await request.send().timeout(const Duration(seconds: 40));
       final response = await http.Response.fromStream(streamed);
 
-      if (response.statusCode == 503 || response.body.contains('503') || response.body.contains('Tunnel Unavailable')) {
-        _setStatus('❌ Cloud Tunnel is Offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.', Colors.red.shade800);
+      if (response.statusCode == 503 ||
+          response.body.contains('503') ||
+          response.body.contains('Tunnel Unavailable')) {
+        _setStatus(
+          '❌ Cloud Tunnel is Offline (503).\nPlease ensure the attendance server is running.',
+          Colors.red.shade800,
+        );
         return;
       }
 
@@ -248,53 +157,67 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       try {
         data = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (_) {
-        _setStatus('❌ Server error (${response.statusCode})', Colors.red.shade800);
+        _setStatus('❌ Server response error (${response.statusCode})', Colors.red.shade800);
         return;
       }
 
       if (response.statusCode == 200) {
         final status = data['status'] ?? '';
-        final name = data['name'] ?? '';
-        final rollNo = data['roll_no'] ?? '';
+        final name = data['name'] ?? _studentName;
+        final rollNo = data['roll_no'] ?? _studentRoll;
         final time = data['time'] ?? '';
         final confidence = data['confidence'] ?? 0;
-        final confStr = confidence > 0 ? '\nMatch Confidence: $confidence%' : '';
+        final confStr = confidence > 0 ? '\nConfidence: $confidence%' : '';
         final subject = (data['subject'] ?? '').toString();
         final subjStr = subject.isNotEmpty ? '\nSubject: $subject' : '';
+
+        setState(() => _isSuccess = true);
+
         if (status == 'already_marked') {
-          _setStatus('✅ Already Marked Today!\n\nStudent: $name\nRoll No: $rollNo$subjStr$confStr', Colors.indigo.shade800);
+          _setStatus(
+            '✅ Already Marked for this Class!\n\nStudent: $name\nRoll No: $rollNo$subjStr$confStr',
+            Colors.indigo.shade800,
+          );
         } else {
-          _setStatus('✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo$subjStr\nTime: $time$confStr', Colors.green.shade800);
+          _setStatus(
+            '✅ Attendance Marked Successfully!\n\nStudent: $name\nRoll No: $rollNo$subjStr\nTime: $time$confStr',
+            Colors.green.shade800,
+          );
         }
+
+        // Auto close after 2.5 seconds on success
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
+        });
       } else if (response.statusCode == 403) {
-        final detail = data['detail'] ?? 'Time limit exceeded.';
-        _setStatus('🚫 Rejection (Strict Window):\n$detail', Colors.red.shade800);
+        final detail = data['detail'] ?? 'Attendance window limit exceeded.';
+        _setStatus('🚫 Time Window / Policy:\n$detail', Colors.red.shade800);
       } else if (response.statusCode == 404) {
         final detail = data['detail'] ?? 'Face not recognized.';
         _setStatus('❌ Face Not Matched:\n$detail', Colors.red.shade800);
       } else {
-        final detail = data['detail'] ?? 'Verification failed';
+        final detail = data['detail'] ?? 'Verification failed (${response.statusCode})';
         _setStatus('❌ $detail', Colors.red.shade800);
       }
-
-      try {
-        await File(path).delete();
-      } catch (_) {}
     } catch (e) {
-      _setStatus('Network or connection error.', Colors.red.shade800);
+      _setStatus('Network or connection error. Please retry.', Colors.red.shade800);
     } finally {
+      if (tempFilePath != null) {
+        try {
+          await File(tempFilePath).delete();
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() => _isProcessing = false);
-        // Do not restart stream automatically to avoid infinite loops, let them tap retry if failed
       }
     }
   }
 
   @override
   void dispose() {
-    _cameraController?.stopImageStream();
     _cameraController?.dispose();
-    _faceDetector?.close();
     super.dispose();
   }
 
@@ -304,25 +227,27 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Face Scan Attendance'),
-        backgroundColor: Colors.indigo.shade900,
+        backgroundColor: const Color(0xFF0F3460),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
+              // Header Card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: Colors.indigo.shade50,
+                color: const Color(0xFF0F3460).withOpacity(0.06),
                 child: Column(
                   children: [
                     Text(
                       'Marking for: ${_studentName.toUpperCase()} ($_studentRoll)',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.indigo.shade900,
+                        color: Color(0xFF0F3460),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -339,14 +264,23 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // Camera Preview Frame
               Center(
                 child: Container(
                   width: 280,
-                  height: 360,
+                  height: 350,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: _isCameraReady && _cameraController != null
@@ -354,46 +288,55 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                           alignment: Alignment.center,
                           children: [
                             CameraPreview(_cameraController!),
+                            // Face Guide Oval
                             Container(
-                              width: 240,
-                              height: 320,
+                              width: 220,
+                              height: 300,
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white70, width: 3),
-                                borderRadius: BorderRadius.circular(120),
+                                border: Border.all(
+                                  color: _isSuccess
+                                      ? Colors.greenAccent
+                                      : (_isProcessing ? Colors.amberAccent : Colors.white70),
+                                  width: 3.5,
+                                ),
+                                borderRadius: BorderRadius.circular(110),
                               ),
                             ),
                           ],
                         )
                       : const Center(
-                          child: CircularProgressIndicator(color: Colors.indigo),
+                          child: CircularProgressIndicator(color: Color(0xFF0F3460)),
                         ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+
+              // Status Card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: _statusColor.withOpacity(0.1),
+                    color: _statusColor.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _statusColor.withOpacity(0.3)),
+                    border: Border.all(color: _statusColor.withOpacity(0.25)),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _isProcessing
-                            ? Icons.hourglass_top
-                            : (_blinkState == 3 ? Icons.check_circle : Icons.face_retouching_natural),
+                        _isSuccess
+                            ? Icons.check_circle
+                            : (_isProcessing ? Icons.hourglass_top : Icons.face),
                         color: _statusColor,
-                        size: 28,
+                        size: 26,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _statusMessage,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             color: _statusColor,
                             fontWeight: FontWeight.w600,
                           ),
@@ -403,51 +346,44 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // Primary Action: Capture & Mark Attendance Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: FilledButton.icon(
-                    onPressed: _isProcessing ? null : () {
-                      if (_blinkState < 2) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Anti-Spoofing Active: Natural eye blink is required. Static photos cannot be used!'),
-                            backgroundColor: Colors.redAccent,
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
-                        return;
-                      }
-                      if (_blinkState != 3) {
-                        _cameraController?.stopImageStream();
-                        _captureAndVerify();
-                      }
-                    },
+                    onPressed: _isProcessing
+                        ? null
+                        : (_isSuccess ? () => Navigator.pop(context, true) : _captureAndVerify),
                     style: FilledButton.styleFrom(
-                      backgroundColor: _blinkState >= 2 ? Colors.green.shade700 : const Color(0xFF0F3460),
+                      backgroundColor: _isSuccess ? Colors.green.shade700 : const Color(0xFFE94560),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     icon: _isProcessing
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
                               color: Colors.white,
                             ),
                           )
-                        : Icon(_blinkState >= 2 ? Icons.verified : Icons.remove_red_eye, size: 28),
+                        : Icon(_isSuccess ? Icons.check : Icons.camera_alt, size: 24),
                     label: Text(
                       _isProcessing
-                          ? 'Uploading...'
-                          : (_blinkState >= 2 ? 'Blink Verified! Capturing...' : 'Blink Eyes to Auto-Capture'),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ? 'Verifying Face...'
+                          : (_isSuccess ? 'Attendance Marked (Done)' : 'Mark Attendance (Capture Face)'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
