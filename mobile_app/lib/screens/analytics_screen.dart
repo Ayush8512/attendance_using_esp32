@@ -41,62 +41,125 @@ class StudentAnalyticsScreen extends StatefulWidget {
 
 class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
   bool _isLoading = true;
+  bool _isOfflineCached = false;
+  String? _cachedTimestamp;
   String? _errorMessage;
   Map<String, dynamic>? _analyticsData;
 
   @override
   void initState() {
     super.initState();
-    _loadAnalytics();
+    _loadCachedAnalyticsThenFetch();
   }
 
-  Future<void> _loadAnalytics() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+  Future<void> _loadCachedAnalyticsThenFetch() async {
     try {
-      final uri = Uri.parse('${widget.serverUrl}/students/${widget.rollNo}/analytics');
-      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 60));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJsonStr = prefs.getString('cached_analytics_${widget.rollNo}');
+      final savedTime = prefs.getString('cached_analytics_time_${widget.rollNo}');
+      if (cachedJsonStr != null && cachedJsonStr.isNotEmpty) {
+        final data = jsonDecode(cachedJsonStr) as Map<String, dynamic>;
         if (mounted) {
           setState(() {
             _analyticsData = data;
-            _isLoading = false;
-          });
-        }
-      } else {
-        String err = 'Failed to load analytics (${res.statusCode})';
-        try {
-          err = jsonDecode(res.body)['detail'] ?? err;
-        } catch (_) {
-          if (res.statusCode == 503 || res.body.contains('503') || res.body.contains('Tunnel Unavailable')) {
-            err = 'Cloud Tunnel is currently offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.';
-          } else {
-            err = 'Server returned error (${res.statusCode})';
-          }
-        }
-        if (mounted) {
-          setState(() {
-            _errorMessage = err;
+            _isOfflineCached = true;
+            _cachedTimestamp = savedTime;
             _isLoading = false;
           });
         }
       }
     } catch (e) {
-      if (mounted) {
-        String msg = 'Connection error: $e';
-        if (e is FormatException && (e.message.contains('503') || e.source.toString().contains('503'))) {
-          msg = 'Cloud Tunnel is currently offline (503).\nPlease ensure START_SERVER.bat is running on your laptop.';
-        }
-        setState(() {
-          _errorMessage = msg;
-          _isLoading = false;
-        });
-      }
+      debugPrint('[ANALYTICS] Cache load error: $e');
     }
+    // Now fetch fresh data from server (in background if we already have offline cached data)
+    _loadAnalytics(isBackgroundRefresh: _analyticsData != null);
+  }
+
+  Future<void> _loadAnalytics({bool isBackgroundRefresh = false}) async {
+    if (!isBackgroundRefresh || _analyticsData == null) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final uri = Uri.parse('${widget.serverUrl}/students/${widget.rollNo}/analytics');
+      final res = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 15));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cached_analytics_${widget.rollNo}', res.body);
+          final now = DateTime.now();
+          final formattedTime = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+          await prefs.setString('cached_analytics_time_${widget.rollNo}', formattedTime);
+          _cachedTimestamp = formattedTime;
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() {
+            _analyticsData = data;
+            _isLoading = false;
+            _isOfflineCached = false;
+            _errorMessage = null;
+          });
+        }
+      } else {
+        _handleAnalyticsError(res.statusCode, res.body);
+      }
+    } catch (e) {
+      _handleAnalyticsError(null, e.toString());
+    }
+  }
+
+  void _handleAnalyticsError(int? statusCode, String raw) {
+    if (!mounted) return;
+
+    // RESILIENT OFFLINE MODE: If we have previous or cached records, NEVER wipe them!
+    if (_analyticsData != null) {
+      setState(() {
+        _isOfflineCached = true;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.cloud_off, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Server offline. Showing last saved records.'),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+          backgroundColor: Colors.blueGrey.shade800,
+        ),
+      );
+      return;
+    }
+
+    String err = 'Failed to load analytics';
+    if (statusCode != null) {
+      try {
+        err = jsonDecode(raw)['detail'] ?? 'Server error ($statusCode)';
+      } catch (_) {
+        if (statusCode == 502 || statusCode == 503 || raw.contains('502') || raw.contains('503') || raw.contains('Tunnel Unavailable')) {
+          err = 'Cloud Tunnel is currently offline ($statusCode).\nPlease ensure START_SYSTEM.bat is running on your server.';
+        } else {
+          err = 'Server returned error ($statusCode)';
+        }
+      }
+    } else {
+      err = 'Unable to connect to server. Check your network connection.';
+    }
+
+    setState(() {
+      _errorMessage = err;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -115,7 +178,7 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadAnalytics,
+            onPressed: _isLoading ? null : () => _loadAnalytics(isBackgroundRefresh: false),
           ),
         ],
       ),
@@ -145,10 +208,49 @@ class _StudentAnalyticsScreenState extends State<StudentAnalyticsScreen> {
                   ),
                 )
               : RefreshIndicator(
-                  onRefresh: _loadAnalytics,
+                  onRefresh: () => _loadAnalytics(isBackgroundRefresh: false),
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      if (_isOfflineCached)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.amber.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.cloud_off_rounded, size: 20, color: Colors.amber.shade900),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Offline Mode — Viewing Saved Records',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber.shade900,
+                                      ),
+                                    ),
+                                    if (_cachedTimestamp != null)
+                                      Text(
+                                        'Last synced: $_cachedTimestamp',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.amber.shade800,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Header Profile info
                       Row(
                         children: [

@@ -15,11 +15,19 @@ taskkill /F /IM cloudflared.exe >nul 2>&1
 
 echo [2/3] Starting High-Concurrency Backend Server...
 start "Backend Server" cmd /k "d:\RFID\RUN_SERVER.bat"
-ping 127.0.0.1 -n 4 >nul
+
+echo     Waiting for Backend Server to load AI models and be ready on Port 8000...
+:wait_server_loop
+curl.exe -s http://127.0.0.1:8000/health >nul 2>&1
+if errorlevel 1 (
+    timeout /t 1 /nobreak >nul
+    goto wait_server_loop
+)
+echo     [OK] Backend Server is verified online and responding!
 
 echo [3/3] Starting Permanent Cloudflare Tunnel...
 start "Cloudflare Tunnel" cmd /k "d:\RFID\RUN_CLOUDFLARE_TUNNEL.bat"
-ping 127.0.0.1 -n 5 >nul
+timeout /t 3 /nobreak >nul
 
 start https://attendancesystemiert.dpdns.org
 

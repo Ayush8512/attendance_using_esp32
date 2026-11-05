@@ -58,7 +58,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }).toList();
   }
 
-  // BLE Beacon State
+  // BLE Beacon State with 90-second TTL
+  static const int kBeaconTtlSeconds = 90;
+  DateTime? _lastBeaconSeenTime;
+  Timer? _beaconTtlTimer;
+  bool _isTimetableOffline = false;
   bool _isManualScanning = false;
   bool _isBeaconDetected = false;
   int? _detectedBeaconRssi;
@@ -76,12 +80,119 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
     });
 
-    // Auto-refresh timetable and beacon every 30 seconds
-    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && !_isManualScanning) {
+    // Beacon 90s presence TTL checker every 3 seconds
+    _beaconTtlTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _checkBeaconTtlExpiry();
+    });
+
+    // Auto-refresh timetable and silent background beacon check every 90 seconds
+    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 90), (_) {
+      if (mounted) {
         _fetchLiveTimetable(isBackground: true);
+        if (!_isManualScanning) {
+          _startManualBeaconScan(isBackgroundCheck: true);
+        }
       }
     });
+  }
+
+  void _checkBeaconTtlExpiry() {
+    if (_isBeaconDetected) {
+      final elapsed = _lastBeaconSeenTime != null
+          ? DateTime.now().difference(_lastBeaconSeenTime!).inSeconds
+          : 999;
+      if (elapsed >= kBeaconTtlSeconds) {
+        if (mounted) {
+          setState(() {
+            _isBeaconDetected = false;
+            _detectedBeaconRssi = null;
+            _isBeaconTooWeak = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _loadCachedTimetable() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? cached = _studentRoll.isNotEmpty ? prefs.getString('cached_timetable_$_studentRoll') : null;
+      if (cached == null || cached.isEmpty) {
+        cached = prefs.getString('cached_timetable_latest');
+      }
+      if (cached != null && cached.isNotEmpty) {
+        _applyTimetableData(cached, isFromCache: true);
+      }
+    } catch (e) {
+      debugPrint('[TIMETABLE] Cache read error: $e');
+    }
+  }
+
+  Map<String, dynamic>? get _resolvedCurrentClass {
+    if (_currentClass != null) return _currentClass;
+    if (_todayClasses.isEmpty) return null;
+    final now = DateTime.now();
+    final curMinutes = now.hour * 60 + now.minute;
+    for (final item in _todayClasses) {
+      final startH = (item['hour'] is int) ? item['hour'] as int : int.tryParse(item['hour'].toString()) ?? 0;
+      final startM = (item['start_minute'] is int) ? item['start_minute'] as int : int.tryParse(item['start_minute'].toString()) ?? 0;
+      final endH = (item['end_hour'] is int) ? item['end_hour'] as int : int.tryParse(item['end_hour']?.toString() ?? '') ?? (startH + 1);
+      final endM = (item['end_minute'] is int) ? item['end_minute'] as int : int.tryParse(item['end_minute']?.toString() ?? '') ?? 0;
+      final startTotal = startH * 60 + startM;
+      final endTotal = endH * 60 + endM;
+      if (curMinutes >= startTotal && curMinutes <= endTotal) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _applyTimetableData(String jsonString, {bool isFromCache = false}) {
+    try {
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      final currentSlot = data['current_slot'] as Map<String, dynamic>?;
+      final rawList = data['timetable'] as List<dynamic>?;
+      List<Map<String, dynamic>> parsedList = [];
+      if (rawList != null) {
+        parsedList = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        if (_studentSection.isNotEmpty) {
+          final mySec = _studentSection.trim().toUpperCase();
+          final myBranch = _studentBranch.trim().toUpperCase();
+          parsedList = parsedList.where((item) {
+            final sec = (item['section'] ?? '').toString().trim().toUpperCase();
+            final br = (item['branch_code'] ?? '').toString().trim().toUpperCase();
+            if (sec.isNotEmpty && sec != 'ALL' && sec != 'ALL SECTIONS') {
+              return sec == mySec;
+            }
+            if (br.isNotEmpty && br != 'ALL' && br != 'ALL BRANCHES' && myBranch.isNotEmpty) {
+              return br == myBranch;
+            }
+            return true;
+          }).toList();
+        }
+      }
+      if (mounted) {
+        setState(() {
+          if (parsedList.isNotEmpty) {
+            _timetableList = parsedList;
+          }
+          if (currentSlot != null) {
+            _serverDay = currentSlot['day'] ?? '';
+            _serverTime = currentSlot['time'] ?? '';
+            _currentClass = currentSlot['class'] as Map<String, dynamic>?;
+            _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
+          }
+          if (isFromCache) {
+            _isTimetableOffline = true;
+          } else {
+            _timetableError = '';
+            _isTimetableOffline = false;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[TIMETABLE] Parse error: $e');
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -102,6 +213,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _studentClassRoll = classRoll;
         _studentYear = year;
       });
+      _loadCachedTimetable();
       _fetchLiveTimetable();
       _startManualBeaconScan();
 
@@ -154,6 +266,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   void dispose() {
+    _beaconTtlTimer?.cancel();
     _autoRefreshTimer?.cancel();
     _notificationSub?.cancel();
     super.dispose();
@@ -195,59 +308,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final response = await http.get(uri, headers: kDefaultHttpHeaders).timeout(const Duration(seconds: 12));
       if (response.statusCode == 200) {
         _consecutiveFailures = 0;
+        _applyTimetableData(response.body, isFromCache: false);
         try {
-          final data = jsonDecode(response.body) as Map<String, dynamic>;
-          final currentSlot = data['current_slot'] as Map<String, dynamic>?;
-          final rawList = data['timetable'] as List<dynamic>?;
-          List<Map<String, dynamic>> parsedList = [];
-          if (rawList != null) {
-            parsedList = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-            // Client-side guarantee: Only show classes for this student's section or All Sections
-            if (_studentSection.isNotEmpty) {
-              final mySec = _studentSection.trim().toUpperCase();
-              final myBranch = _studentBranch.trim().toUpperCase();
-              parsedList = parsedList.where((item) {
-                final sec = (item['section'] ?? '').toString().trim().toUpperCase();
-                final br = (item['branch_code'] ?? '').toString().trim().toUpperCase();
-                if (sec.isNotEmpty && sec != 'ALL' && sec != 'ALL SECTIONS') {
-                  return sec == mySec;
-                }
-                if (br.isNotEmpty && br != 'ALL' && br != 'ALL BRANCHES' && myBranch.isNotEmpty) {
-                  return br == myBranch;
-                }
-                return true;
-              }).toList();
-            }
+          final prefs = await SharedPreferences.getInstance();
+          if (_studentRoll.isNotEmpty) {
+            await prefs.setString('cached_timetable_$_studentRoll', response.body);
           }
-          if (mounted) {
-            setState(() {
-              _timetableError = '';
-              _timetableList = parsedList;
-              if (currentSlot != null) {
-                _serverDay = currentSlot['day'] ?? '';
-                _serverTime = currentSlot['time'] ?? '';
-                _currentClass = currentSlot['class'] as Map<String, dynamic>?;
-                _windowStatus = currentSlot['window_status'] as Map<String, dynamic>?;
-              }
-            });
-          }
-        } catch (e) {
-          debugPrint('[TIMETABLE] Parse error: $e');
-        }
+          await prefs.setString('cached_timetable_latest', response.body);
+        } catch (_) {}
       } else {
         _consecutiveFailures++;
-        if (_consecutiveFailures >= 2 && mounted) {
+        if (mounted) {
           setState(() {
-            _timetableError = 'Server temporarily unavailable (${response.statusCode})';
+            _isTimetableOffline = true;
+            if (_timetableList.isEmpty && _consecutiveFailures >= 2) {
+              _timetableError = 'Server temporarily unavailable (${response.statusCode})';
+            }
           });
         }
       }
     } catch (e) {
       debugPrint('[TIMETABLE] Failed to fetch: $e');
       _consecutiveFailures++;
-      if (_consecutiveFailures >= 2 && mounted) {
+      if (mounted) {
         setState(() {
-          _timetableError = 'Connection error. Retrying...';
+          _isTimetableOffline = true;
+          if (_timetableList.isEmpty && _consecutiveFailures >= 2) {
+            _timetableError = 'Connection error. Retrying...';
+          }
         });
       }
     } finally {
@@ -282,9 +370,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return false;
   }
 
-  Future<void> _startManualBeaconScan() async {
+  Future<void> _startManualBeaconScan({bool isBackgroundCheck = false}) async {
     if (_isManualScanning) return;
-    setState(() => _isManualScanning = true);
+    if (!isBackgroundCheck) {
+      setState(() => _isManualScanning = true);
+    }
 
     final cleanTargetUUID = kBeaconUUID.replaceAll('-', '').toLowerCase();
     bool foundInsideRoom = false;
@@ -294,26 +384,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final completer = Completer<void>();
 
     try {
-      // 1. Instant check from recent scan cache (0ms latency if recently seen with sufficient signal)
-      for (final r in FlutterBluePlus.lastScanResults) {
-        if (_matchesBeacon(r, cleanTargetUUID)) {
-          if (bestRssi == null || r.rssi > bestRssi) {
-            bestRssi = r.rssi;
-          }
-          if (r.rssi >= kMinRssi) {
-            foundInsideRoom = true;
-            heardWeakOutside = false;
-            if (mounted) {
-              setState(() {
-                _isBeaconDetected = true;
-                _detectedBeaconRssi = r.rssi;
-                _isBeaconTooWeak = false;
-                _isManualScanning = false;
-              });
+      // 1. Check recent scan cache ONLY if last seen timestamp is strictly within 90s TTL
+      if (!isBackgroundCheck && _lastBeaconSeenTime != null) {
+        final elapsed = DateTime.now().difference(_lastBeaconSeenTime!).inSeconds;
+        if (elapsed < kBeaconTtlSeconds) {
+          for (final r in FlutterBluePlus.lastScanResults) {
+            if (_matchesBeacon(r, cleanTargetUUID) && r.rssi >= kMinRssi) {
+              if (mounted) {
+                setState(() {
+                  _isBeaconDetected = true;
+                  _detectedBeaconRssi = r.rssi;
+                  _isBeaconTooWeak = false;
+                  _isManualScanning = false;
+                });
+              }
+              return;
             }
-            return;
-          } else {
-            heardWeakOutside = true;
           }
         }
       }
@@ -326,7 +412,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           Permission.bluetoothConnect,
         ].request();
         if (reqs[Permission.locationWhenInUse]?.isDenied == true || reqs[Permission.bluetoothScan]?.isDenied == true) {
-          if (mounted) {
+          if (mounted && !isBackgroundCheck) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Location & Nearby Devices permissions are required to scan classroom beacon.'),
@@ -341,7 +427,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       // Check if Location (GPS) service is ON
       try {
         final isGpsOn = await Permission.location.serviceStatus.isEnabled;
-        if (!isGpsOn && mounted) {
+        if (!isGpsOn && mounted && !isBackgroundCheck) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Please turn ON GPS / Location in your phone to scan classroom beacon.'),
@@ -363,7 +449,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       }
 
       if (state != BluetoothAdapterState.on) {
-        if (mounted) {
+        if (mounted && !isBackgroundCheck) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Please ensure Bluetooth & GPS Location are turned ON.'),
@@ -381,7 +467,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         } catch (_) {}
       }
 
-      // 4. Listen for beacon packets with INSTANT reactive completion upon meeting RSSI threshold
+      // 4. Listen for live beacon packets with INSTANT reactive completion
       scanSub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
           if (_matchesBeacon(r, cleanTargetUUID)) {
@@ -391,12 +477,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             if (r.rssi >= kMinRssi) {
               foundInsideRoom = true;
               heardWeakOutside = false;
+              _lastBeaconSeenTime = DateTime.now(); // LIVE presence confirmed!
               if (mounted) {
                 setState(() {
                   _isBeaconDetected = true;
                   _detectedBeaconRssi = r.rssi;
                   _isBeaconTooWeak = false;
-                  _isManualScanning = false;
+                  if (!isBackgroundCheck) _isManualScanning = false;
                 });
               }
               if (!completer.isCompleted) {
@@ -432,12 +519,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       await scanSub?.cancel();
       if (mounted) {
         setState(() {
-          _isManualScanning = false;
-          _isBeaconDetected = foundInsideRoom;
-          _detectedBeaconRssi = bestRssi;
-          _isBeaconTooWeak = !foundInsideRoom && heardWeakOutside;
+          if (!isBackgroundCheck) _isManualScanning = false;
+          if (foundInsideRoom) {
+            _isBeaconDetected = true;
+            _detectedBeaconRssi = bestRssi;
+            _isBeaconTooWeak = false;
+            _lastBeaconSeenTime = DateTime.now();
+          } else {
+            // Check if 90s TTL has expired
+            final elapsed = _lastBeaconSeenTime != null
+                ? DateTime.now().difference(_lastBeaconSeenTime!).inSeconds
+                : 999;
+            if (elapsed >= kBeaconTtlSeconds) {
+              _isBeaconDetected = false;
+              _detectedBeaconRssi = bestRssi;
+              _isBeaconTooWeak = heardWeakOutside;
+            }
+          }
         });
-        if (!foundInsideRoom && heardWeakOutside) {
+        if (!isBackgroundCheck && !foundInsideRoom && heardWeakOutside) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Classroom beacon detected, but signal is weak (${bestRssi} dBm < ${kMinRssi} dBm). Please enter the classroom.'),
@@ -520,7 +620,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'https://shading-pretzel-mascot.ngrok-free.dev',
+                hintText: 'https://attendancesystemiert.dpdns.org',
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
@@ -533,7 +633,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   controller.text = kDefaultApiBaseUrl;
                 },
                 icon: const Icon(Icons.cloud_sync, size: 16),
-                label: const Text('Reset to Cloud URL (shading-pretzel-mascot)', style: TextStyle(fontSize: 11)),
+                label: const Text('Reset to Cloud URL (attendancesystemiert.dpdns.org)', style: TextStyle(fontSize: 11)),
               ),
             ),
             const SizedBox(height: 18),
@@ -595,35 +695,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasActiveSubject = _currentClass != null && _currentClass!['subject'] != null;
-    final subjectName = _timetableError.isNotEmpty
-        ? '⚠️ Cloud Server Offline'
-        : (hasActiveSubject ? _currentClass!['subject'] : 'No Class Scheduled');
-    final teacherEmail = hasActiveSubject ? _currentClass!['teacher_email'] ?? '' : '';
-    final isWindowOpen = _timetableError.isEmpty && _windowStatus != null && _windowStatus!['is_open'] == true;
-    final windowMessage = _timetableError.isNotEmpty
+    final currentClassToUse = _resolvedCurrentClass;
+    final hasActiveSubject = currentClassToUse != null && currentClassToUse['subject'] != null;
+    final subjectName = hasActiveSubject
+        ? currentClassToUse['subject']
+        : (_timetableList.isNotEmpty
+            ? 'No Class in Session'
+            : (_timetableError.isNotEmpty ? '⚠️ Cloud Server Offline' : 'No Class Scheduled'));
+    final teacherEmail = hasActiveSubject ? currentClassToUse['teacher_email'] ?? '' : '';
+    final isWindowOpen = _timetableError.isEmpty && !_isTimetableOffline && _windowStatus != null && _windowStatus!['is_open'] == true;
+    final windowMessage = (_timetableError.isNotEmpty && _timetableList.isEmpty)
         ? 'Cannot connect to college server. Swipe down to refresh.'
-        : (_windowStatus != null ? _windowStatus!['message'] ?? '' : 'No active attendance window.');
+        : (_isTimetableOffline
+            ? 'Offline Mode: Showing cached schedule (Server offline).'
+            : (_windowStatus != null ? _windowStatus!['message'] ?? '' : 'No active attendance window.'));
 
     String classTimingStr = '';
     String windowTimingStr = '';
     if (hasActiveSubject) {
-      if (_currentClass!['timing_12h'] != null && _currentClass!['timing_12h'].toString().isNotEmpty) {
-        classTimingStr = _currentClass!['timing_12h'].toString();
-      } else if (_currentClass!['time_label'] != null && _currentClass!['time_label'].toString().isNotEmpty) {
-        classTimingStr = _currentClass!['time_label'].toString();
+      if (currentClassToUse!['timing_12h'] != null && currentClassToUse['timing_12h'].toString().isNotEmpty) {
+        classTimingStr = currentClassToUse['timing_12h'].toString();
+      } else if (currentClassToUse['time_label'] != null && currentClassToUse['time_label'].toString().isNotEmpty) {
+        classTimingStr = currentClassToUse['time_label'].toString();
       } else {
-        final startH = _currentClass!['hour'] ?? 0;
-        final startM = _currentClass!['start_minute'] ?? 0;
-        final endH = _currentClass!['end_hour'] ?? (startH + 1);
-        final endM = _currentClass!['end_minute'] ?? 0;
+        final startH = currentClassToUse['hour'] ?? 0;
+        final startM = currentClassToUse['start_minute'] ?? 0;
+        final endH = currentClassToUse['end_hour'] ?? (startH + 1);
+        final endM = currentClassToUse['end_minute'] ?? 0;
         classTimingStr = '${startH.toString().padLeft(2, '0')}:${startM.toString().padLeft(2, '0')} - ${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
       }
 
       if (_windowStatus != null && _windowStatus!['window_end'] != null) {
         windowTimingStr = _windowStatus!['window_end'].toString();
-      } else if (_currentClass!['window_end_time'] != null) {
-        windowTimingStr = _currentClass!['window_end_time'].toString();
+      } else if (currentClassToUse['window_end_time'] != null) {
+        windowTimingStr = currentClassToUse['window_end_time'].toString();
       }
     }
 
@@ -945,7 +1050,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                   ),
                 ),
-                if (_timetableError.isNotEmpty) ...[
+                if (_isTimetableOffline && _timetableList.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.cloud_off, color: Colors.amber.shade900, size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Server offline: Displaying saved offline timetable.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF78350F), fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (_timetableError.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1051,9 +1178,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           return Column(
                             children: listToDisplay.map((item) {
                               final subj = item['subject']?.toString() ?? 'Class';
-                              final isLive = _currentClass != null &&
-                                  _currentClass!['subject'] == subj &&
-                                  _currentClass!['hour'] == item['hour'];
+                              final isLive = currentClassToUse != null &&
+                                  currentClassToUse['subject'] == subj &&
+                                  currentClassToUse['hour'] == item['hour'];
                               final timeStr = item['timing_12h'] ?? item['time_label'] ?? '${item['hour']}:00';
                               final teacher = item['teacher_email']?.toString() ?? '';
                               final sec = item['section']?.toString() ?? '';
@@ -1230,6 +1357,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   height: 54,
                   child: FilledButton.icon(
                     onPressed: () async {
+                      if (_isTimetableOffline) {
+                        if (!context.mounted) return;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.cloud_off, color: Colors.orange, size: 28),
+                                SizedBox(width: 10),
+                                Text('Server Offline', style: TextStyle(fontSize: 18)),
+                              ],
+                            ),
+                            content: const Text(
+                              'College server is currently offline.\n\nYour saved timetable schedule is safe and visible offline, but attendance cannot be submitted until the server is reconnected.\n\nPlease swipe down to retry connection.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _fetchLiveTimetable();
+                                  _startManualBeaconScan();
+                                },
+                                child: const Text('Retry Connection'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                        return;
+                      }
+
                       if (!_isBeaconDetected) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
