@@ -129,19 +129,26 @@ async def end_class_endpoint(
     teacher_email: str | None = Form(None),
     section: str | None = Form(None),
     branch_code: str | None = Form(None),
+    start_date: str | None = Form(None),
+    end_date: str | None = Form(None),
 ):
-    """End a live class session, generate an attendance Excel spreadsheet, and email it to the teacher."""
+    """End a live class session, generate a cumulative register Excel spreadsheet, and email it to the teacher."""
     try:
         from utils import get_ist_now
-        today = get_ist_now().strftime("%Y-%m-%d")
+        now = get_ist_now()
+        today = now.strftime("%Y-%m-%d")
         clean_subj = subject.strip()
         clean_sec = section.strip().upper() if section and section.strip() not in ("ALL", "ALL SECTIONS") else None
         clean_br = branch_code.strip().upper() if branch_code and branch_code.strip() not in ("ALL", "ALL BRANCHES") else None
 
+        # Cumulative register: default to 1st of current month up to today (consolidates all lectures into a single date-wise register)
+        clean_start = start_date.strip() if start_date and start_date.strip() else today[:7] + "-01"
+        clean_end = end_date.strip() if end_date and end_date.strip() else today
+
         filepath, filename = await generate_attendance_excel(
             subject=clean_subj,
-            start_date=today,
-            end_date=today,
+            start_date=clean_start,
+            end_date=clean_end,
             section=clean_sec,
             branch=clean_br,
         )
@@ -154,17 +161,18 @@ async def end_class_endpoint(
 
         if target_email:
             try:
-                subject_line = f"Official Attendance Report: {clean_subj} ({today})"
+                date_range_label = today if clean_start == clean_end else f"{clean_start} to {clean_end}"
+                subject_line = f"Official Attendance Register: {clean_subj} ({date_range_label})"
                 body_plain = f"""Dear Faculty Member,
 
-Please find attached the official attendance report for the lecture session conducted today.
+Please find attached the official cumulative attendance register for your subject '{clean_subj}'.
 
 Lecture Details:
 - Subject: {clean_subj}
-- Date: {today}
+- Register Period: {date_range_label}
 - Section: {clean_sec or 'All Sections'}
 - Branch: {clean_br or 'All Branches'}
-- Attachment: {filename} (.xlsx)
+- Spreadsheet: {filename} (.xlsx)
 
 The attached Excel spreadsheet contains the complete verified attendance records with biometric timestamps.
 
