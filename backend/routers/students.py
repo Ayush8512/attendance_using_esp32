@@ -264,11 +264,12 @@ async def register_student(
 @router.post('/students/login')
 async def login_student(
     roll_no: str = Form(..., description="Student Roll Number (AKTU Roll or Section Roll)"),
+    photo: UploadFile = File(..., description="Live face selfie photo for biometric verification"),
     device_id: str = Form(..., description="Mobile hardware device UUID"),
 ):
     """
-    Authenticate and lock student profile to mobile hardware device.
-    Strictly enforces 1 Phone = 1 Student policy (Anti-Proxy Architecture).
+    Biometric Face Login: Authenticate existing student by verifying live face against registered face encoding.
+    Blocks imposter logins and restores profile only to the genuine student.
     """
     clean_roll = roll_no.strip().upper()
     clean_device = device_id.strip()
@@ -292,50 +293,58 @@ async def login_student(
 
         # 2. Check student record in registered students
         cur = await db.execute(
-            "SELECT roll_no, name, branch_code, branch_name, section, year, class_roll_no, is_locked, device_id FROM students WHERE roll_no = ?",
+            "SELECT roll_no, name, branch_code, branch_name, section, year, class_roll_no, is_locked, device_id, face_encoding FROM students WHERE roll_no = ?",
             (clean_roll,),
         )
         student = await cur.fetchone()
 
         if not student:
-            # Check college roster fallback
-            roster_cur = await db.execute(
-                "SELECT primary_roll_no as roll_no, name, branch_code, branch_name, section, year, class_roll_no FROM college_roster WHERE primary_roll_no = ? OR class_roll_no = ? LIMIT 1",
-                (clean_roll, clean_roll),
-            )
-            r_stu = await roster_cur.fetchone()
-            if not r_stu:
-                raise HTTPException(status_code=404, detail=f"Roll Number '{clean_roll}' not found in college records.")
-
             raise HTTPException(
                 status_code=404,
-                detail=f"Student '{r_stu['name']}' ({clean_roll}) is in college roster but has not registered biometrics yet. Please complete Face Registration first.",
+                detail=f"Student with Roll Number '{clean_roll}' not found. Please complete initial face registration first.",
             )
 
-        registered_dev = (student["device_id"] or "").strip()
+        # 3. Extract face encoding from the provided live selfie
+        try:
+            photo_bytes = await photo.read()
+            encoding = await extract_face_encoding(photo_bytes, is_registration=False)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
-        # 3. Check if student is bound to a DIFFERENT device
-        if registered_dev and registered_dev != clean_device:
+        # 4. Strictly verify face against stored registered biometric encoding
+        stored_enc_str = student["face_encoding"]
+        if not stored_enc_str:
+            raise HTTPException(status_code=400, detail="No registered biometric profile found for this student. Please register first.")
+
+        stored_enc = json.loads(stored_enc_str)
+        is_face_match, match_dist, match_conf = match_encoding(stored_enc, encoding)
+
+        if not is_face_match:
             raise HTTPException(
                 status_code=403,
-                detail=f"Device Binding Alert! Student profile for '{student['name']}' ({clean_roll}) is locked to a previous phone or installation. If you reinstalled the app, simply take a selfie on the registration screen to verify your face and restore your profile instantly.",
+                detail=f"Biometric Identity Mismatch! The live face does NOT match the registered face for '{student['name']}' ({clean_roll}) (distance: {match_dist:.2f}). Imposter login / restore blocked.",
             )
 
-        # 4. If student has no device bound yet, bind this device now!
-        if not registered_dev:
-            await db.execute(
-                "UPDATE students SET device_id = ? WHERE roll_no = ?",
-                (clean_device, clean_roll),
-            )
-            await db.commit()
-            logger.info("Bound student %s to device %s", clean_roll, clean_device)
+        # 5. Genuine student verified! Update device binding
+        now_iso = datetime.now().isoformat()
+        await db.execute(
+            "UPDATE students SET device_id = ?, updated_at = ? WHERE roll_no = ?",
+            (clean_device, now_iso, clean_roll),
+        )
+        await db.commit()
 
         b_code = student["branch_code"] or ""
         b_name = student["branch_name"] or BRANCH_METADATA.get(b_code, {}).get("name", "")
 
+        logger.info(
+            "Biometric login successful for %s (%s, dist=%.3f, conf=%.1f%%). Device: %s",
+            clean_roll, student["name"], match_dist, match_conf, clean_device
+        )
+
         return {
             "status": "success",
-            "message": f"Device bound and authenticated successfully for {student['name']}.",
+            "is_restored": True,
+            "message": f"Biometric Match Verified! Welcome back, {student['name']}. Your registered profile has been restored.",
             "student": {
                 "roll_no": student["roll_no"],
                 "name": student["name"],

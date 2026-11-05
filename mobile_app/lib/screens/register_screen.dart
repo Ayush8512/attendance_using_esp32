@@ -592,12 +592,12 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'IERT Student Registration & Biometric Login',
+                                'IERT Biometric Registration & Secure Face Login',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F3460)),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Enter your Roll No & take a selfie. If new, you will be registered. If you reinstalled the app, your face will be verified and profile restored automatically!',
+                                'Enter your Roll No & take a selfie. For new students, this registers your biometrics. For returning students (after logout or reinstall), your live face will be matched with your registered profile to securely restore access.',
                                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.3),
                               ),
                             ],
@@ -778,38 +778,6 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
 
 
 
-                // Restore Profile action for re-installed app
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F3460).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF0F3460).withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.history, color: Color(0xFF0F3460), size: 20),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'App reinstalled? Restore profile:',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      FilledButton.tonal(
-                        onPressed: _isRestoring ? null : _restoreExistingProfile,
-                        child: _isRestoring
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Restore', style: TextStyle(fontSize: 12)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
 
                 // Face Photo Capture Section
                 Text(
