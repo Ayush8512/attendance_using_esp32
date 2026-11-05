@@ -64,6 +64,13 @@ void setBeacon() {
     pAdvertising->setAdvertisementData(oAdvertisementData);
     pAdvertising->setScanResponseData(oScanResponseData);
     pAdvertising->setScanResponse(true);
+
+    // High-speed advertisement intervals (20ms - 40ms) for instant sub-second detection:
+    // Units: 0.625 ms steps. 0x20 = 32 * 0.625 = 20ms, 0x40 = 64 * 0.625 = 40ms.
+    pAdvertising->setMinInterval(0x20);
+    pAdvertising->setMaxInterval(0x40);
+    pAdvertising->setMinPreferred(0x06);
+    pAdvertising->setMaxPreferred(0x12);
 }
 
 void setup() {

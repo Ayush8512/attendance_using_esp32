@@ -120,12 +120,14 @@ void onBackgroundServiceStart(ServiceInstance service) async {
       });
 
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 5),
+        androidScanMode: AndroidScanMode.lowLatency,
+        continuousUpdates: true,
         androidUsesFineLocation: true,
       );
 
       foundBeacon = await completer.future.timeout(
-        const Duration(seconds: 7),
+        const Duration(seconds: 3),
         onTimeout: () => false,
       );
 
