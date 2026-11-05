@@ -9,3 +9,16 @@
 #define BEACON_UUID_REV       "00000000-0000-0000-0000-000000000000"
 #define BEACON_NAME           "SAS_Classroom_Beacon"
 #define LED_PIN               2
+
+// ----------------------------------------------------------------------------
+// BLE Transmission Power (Controls Classroom Boundary Coverage):
+// Options:
+//   ESP_PWR_LVL_N12 : -12 dBm (~1 - 2 meters  - Teacher desk only)
+//   ESP_PWR_LVL_N9  :  -9 dBm (~2 - 4 meters)
+//   ESP_PWR_LVL_N6  :  -6 dBm (~4 - 6 meters  - Small lab / cabin)
+//   ESP_PWR_LVL_N3  :  -3 dBm (~6 - 10 meters - Standard Classroom, Recommended)
+//   ESP_PWR_LVL_N0  :   0 dBm (~10 - 15 meters - Medium Hall)
+//   ESP_PWR_LVL_P3  :  +3 dBm (~15 - 25 meters)
+//   ESP_PWR_LVL_P9  :  +9 dBm (~40 - 50 meters - Max range / penetrates walls)
+// ----------------------------------------------------------------------------
+#define BEACON_TX_POWER       ESP_PWR_LVL_N3

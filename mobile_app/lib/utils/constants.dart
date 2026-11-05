@@ -23,7 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const String kBeaconUUID = '12345678-1234-1234-1234-123456789abc';
 
 /// Minimum RSSI (in dBm) to consider student inside the classroom.
-const int kMinRssi = -75;
+const int kMinRssi = -78;
 
 /// How long to scan for the beacon before giving up during manual scan.
 const Duration kScanTimeout = Duration(seconds: 8);

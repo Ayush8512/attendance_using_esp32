@@ -20,6 +20,7 @@
 #include "BLEServer.h"
 #include "BLEBeacon.h"
 #include "esp_sleep.h"
+#include "esp_bt.h"
 
 // ----------------------------------------------------------------------------
 // Configuration Loader
@@ -35,6 +36,11 @@
     #define LED_PIN           2
 #endif
 
+// Default TX Power: -3 dBm (approx 6-10 meters, strictly classroom boundary)
+#ifndef BEACON_TX_POWER
+    #define BEACON_TX_POWER   ESP_PWR_LVL_N3
+#endif
+
 BLEAdvertising *pAdvertising;
 
 void setBeacon() {
@@ -45,7 +51,7 @@ void setBeacon() {
     oBeacon.setProximityUUID(BLEUUID(BEACON_UUID_REV));
     oBeacon.setMajor(1);         // Room / Classroom number (e.g. Room 1)
     oBeacon.setMinor(101);       // Section / Sub-room (e.g. 101)
-    oBeacon.setSignalPower(-59); // Measured RSSI power at 1 meter
+    oBeacon.setSignalPower(-68); // Measured RSSI power at 1 meter (calibrated for -3 dBm TX power)
 
     BLEAdvertisementData oAdvertisementData;
     BLEAdvertisementData oScanResponseData;
@@ -91,13 +97,20 @@ void setup() {
 
     // Initialize BLE Device
     BLEDevice::init(BEACON_NAME);
+
+    // Limit BLE Transmit Power so signal does NOT leak outside the classroom boundary:
+    // ESP_PWR_LVL_N3 = -3 dBm (~6-10 meters, attenuates heavily through walls)
+    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)BEACON_TX_POWER);
+    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)BEACON_TX_POWER);
+
     pAdvertising = BLEDevice::getAdvertising();
 
     setBeacon();
 
     // Start advertising
     pAdvertising->start();
-    Serial.println("[BLE] Beacon is now LIVE. Students' phones will detect it automatically.\n");
+    Serial.println("[BLE] Transmit Power set to -3 dBm (Classroom perimeter confined).");
+    Serial.println("[BLE] Beacon is now LIVE. Students' phones will detect it inside classroom.\n");
 }
 
 void loop() {

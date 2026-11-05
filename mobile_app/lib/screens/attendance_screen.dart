@@ -61,6 +61,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // BLE Beacon State
   bool _isManualScanning = false;
   bool _isBeaconDetected = false;
+  int? _detectedBeaconRssi;
+  bool _isBeaconTooWeak = false;
 
   @override
   void initState() {
@@ -285,22 +287,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _isManualScanning = true);
 
     final cleanTargetUUID = kBeaconUUID.replaceAll('-', '').toLowerCase();
-    bool found = false;
+    bool foundInsideRoom = false;
+    bool heardWeakOutside = false;
+    int? bestRssi;
     StreamSubscription? scanSub;
     final completer = Completer<void>();
 
     try {
-      // 1. Instant check from recent scan cache (0ms latency if recently seen)
+      // 1. Instant check from recent scan cache (0ms latency if recently seen with sufficient signal)
       for (final r in FlutterBluePlus.lastScanResults) {
         if (_matchesBeacon(r, cleanTargetUUID)) {
-          found = true;
-          if (mounted) {
-            setState(() {
-              _isBeaconDetected = true;
-              _isManualScanning = false;
-            });
+          if (bestRssi == null || r.rssi > bestRssi) {
+            bestRssi = r.rssi;
           }
-          return;
+          if (r.rssi >= kMinRssi) {
+            foundInsideRoom = true;
+            heardWeakOutside = false;
+            if (mounted) {
+              setState(() {
+                _isBeaconDetected = true;
+                _detectedBeaconRssi = r.rssi;
+                _isBeaconTooWeak = false;
+                _isManualScanning = false;
+              });
+            }
+            return;
+          } else {
+            heardWeakOutside = true;
+          }
         }
       }
 
@@ -367,21 +381,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         } catch (_) {}
       }
 
-      // 4. Listen for beacon packets with INSTANT reactive completion
+      // 4. Listen for beacon packets with INSTANT reactive completion upon meeting RSSI threshold
       scanSub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
           if (_matchesBeacon(r, cleanTargetUUID)) {
-            found = true;
-            if (mounted) {
-              setState(() {
-                _isBeaconDetected = true;
-                _isManualScanning = false;
-              });
+            if (bestRssi == null || r.rssi > bestRssi!) {
+              bestRssi = r.rssi;
             }
-            if (!completer.isCompleted) {
-              completer.complete();
+            if (r.rssi >= kMinRssi) {
+              foundInsideRoom = true;
+              heardWeakOutside = false;
+              if (mounted) {
+                setState(() {
+                  _isBeaconDetected = true;
+                  _detectedBeaconRssi = r.rssi;
+                  _isBeaconTooWeak = false;
+                  _isManualScanning = false;
+                });
+              }
+              if (!completer.isCompleted) {
+                completer.complete();
+              }
+              break;
+            } else {
+              heardWeakOutside = true;
             }
-            break;
           }
         }
       });
@@ -394,7 +418,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         androidUsesFineLocation: true,
       );
 
-      // Instantly wake up the millisecond a packet is detected, or timeout in 2.5s max
+      // Instantly wake up the millisecond a verified packet is detected, or timeout in 2.5s max
       await completer.future.timeout(
         const Duration(milliseconds: 2500),
         onTimeout: () {},
@@ -409,8 +433,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (mounted) {
         setState(() {
           _isManualScanning = false;
-          _isBeaconDetected = found;
+          _isBeaconDetected = foundInsideRoom;
+          _detectedBeaconRssi = bestRssi;
+          _isBeaconTooWeak = !foundInsideRoom && heardWeakOutside;
         });
+        if (!foundInsideRoom && heardWeakOutside) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Classroom beacon detected, but signal is weak (${bestRssi} dBm < ${kMinRssi} dBm). Please enter the classroom.'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
       }
     }
   }
@@ -1129,31 +1164,43 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _isBeaconDetected ? Colors.green.shade50 : Colors.amber.shade50,
+                    color: _isBeaconDetected
+                        ? Colors.green.shade50
+                        : (_isBeaconTooWeak ? Colors.orange.shade50 : Colors.amber.shade50),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _isBeaconDetected ? Colors.green.shade300 : Colors.amber.shade400,
+                      color: _isBeaconDetected
+                          ? Colors.green.shade300
+                          : (_isBeaconTooWeak ? Colors.orange.shade300 : Colors.amber.shade400),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _isBeaconDetected ? Icons.check_circle : Icons.bluetooth_searching,
-                        color: _isBeaconDetected ? Colors.green.shade700 : Colors.amber.shade800,
+                        _isBeaconDetected
+                            ? Icons.check_circle
+                            : (_isBeaconTooWeak ? Icons.warning_amber_rounded : Icons.bluetooth_searching),
+                        color: _isBeaconDetected
+                            ? Colors.green.shade700
+                            : (_isBeaconTooWeak ? Colors.orange.shade800 : Colors.amber.shade800),
                         size: 20,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _isBeaconDetected
-                              ? 'Present in Classroom (Verified)'
+                              ? 'Present in Classroom (${_detectedBeaconRssi != null ? "${_detectedBeaconRssi} dBm" : "Verified"})'
                               : (_isManualScanning
                                   ? 'Checking Classroom Bluetooth...'
-                                  : 'Not in Classroom (Turn ON Bluetooth)'),
+                                  : (_isBeaconTooWeak
+                                      ? 'Signal Weak (${_detectedBeaconRssi} dBm) - Move inside room'
+                                      : 'Not in Classroom (Turn ON Bluetooth)')),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: _isBeaconDetected ? Colors.green.shade900 : Colors.amber.shade900,
+                            color: _isBeaconDetected
+                                ? Colors.green.shade900
+                                : (_isBeaconTooWeak ? Colors.orange.shade900 : Colors.amber.shade900),
                           ),
                         ),
                       ),
@@ -1197,15 +1244,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         showDialog(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            title: const Row(
+                            title: Row(
                               children: [
-                                Icon(Icons.location_off, color: Colors.red, size: 28),
-                                SizedBox(width: 10),
-                                Text('Not in Classroom!', style: TextStyle(fontSize: 18)),
+                                Icon(
+                                  _isBeaconTooWeak ? Icons.signal_cellular_alt_2_bar : Icons.location_off,
+                                  color: _isBeaconTooWeak ? Colors.orange.shade800 : Colors.red,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _isBeaconTooWeak ? 'Signal Too Weak!' : 'Not in Classroom!',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
                               ],
                             ),
-                            content: const Text(
-                              'You must be physically present inside the classroom with Bluetooth turned ON to mark attendance.\n\nPlease step inside the lecture hall and try again.',
+                            content: Text(
+                              _isBeaconTooWeak
+                                  ? 'Classroom beacon detected, but the signal is too weak (${_detectedBeaconRssi ?? -85} dBm < ${kMinRssi} dBm).\n\nYou appear to be outside the room, in the hallway, or through a wall.\n\nPlease step inside the lecture hall and scan again.'
+                                  : 'You must be physically present inside the classroom with Bluetooth turned ON to mark attendance.\n\nPlease step inside the lecture hall and try again.',
                             ),
                             actions: [
                               TextButton(
