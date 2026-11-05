@@ -49,8 +49,27 @@ class _StudentRegisterScreenState extends State<StudentRegisterScreen> {
   @override
   void initState() {
     super.initState();
+    _requestAllPermissions();
     _loadExistingProfile();
     _initializeCamera();
+  }
+
+  Future<void> _requestAllPermissions() async {
+    try {
+      final statuses = await [
+        Permission.locationWhenInUse,
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.camera,
+        Permission.notification,
+      ].request();
+
+      if (statuses[Permission.locationWhenInUse]?.isGranted == true) {
+        await Permission.locationAlways.request();
+      }
+    } catch (e) {
+      debugPrint('[PERMISSIONS] Request error: $e');
+    }
   }
 
   Future<void> _loadExistingProfile() async {

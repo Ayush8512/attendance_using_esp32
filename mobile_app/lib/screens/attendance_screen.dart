@@ -158,15 +158,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _requestAllPermissions() async {
-    await [
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.locationWhenInUse,
-      Permission.locationAlways,
-      Permission.camera,
-      Permission.notification,
-    ].request();
+    try {
+      final statuses = await [
+        Permission.locationWhenInUse,
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.camera,
+        Permission.notification,
+      ].request();
+
+      if (statuses[Permission.locationWhenInUse]?.isGranted == true) {
+        await Permission.locationAlways.request();
+      }
+    } catch (e) {
+      debugPrint('[PERMISSIONS] Request error: $e');
+    }
   }
 
   Future<void> _fetchLiveTimetable({bool isBackground = false}) async {
@@ -250,29 +256,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool _matchesBeacon(ScanResult r, String cleanTargetUUID) {
     // 1. Check Service UUIDs
     for (final u in r.advertisementData.serviceUuids) {
-      if (u.toString().replaceAll('-', '').toLowerCase() == cleanTargetUUID) {
+      final s = u.toString().replaceAll('-', '').toLowerCase();
+      if (s == cleanTargetUUID || s == 'bc9a7856341234123412341278563412') {
         return true;
       }
     }
-    // 2. Check Apple iBeacon Manufacturer Data (0x004C / 0x4C00)
-    final mfg = r.advertisementData.manufacturerData;
-    if (mfg.containsKey(0x004C) || mfg.containsKey(0x4C00)) {
-      final bytes = mfg[0x004C] ?? mfg[0x4C00];
-      if (bytes != null && bytes.length >= 20) {
-        final uuidBytes = bytes.sublist(2, 18);
-        if (uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join() == cleanTargetUUID) {
-          return true;
-        }
-      }
-    }
-    // 3. Check Advertisement Name and Device Name
-    final name = r.advertisementData.advName;
-    final devName = r.device.platformName;
-    if (name.contains('Classroom_Beacon') ||
-        name.contains('SAS_Classroom_Beacon') ||
-        devName.contains('Classroom_Beacon') ||
-        devName.contains('SAS_Classroom_Beacon')) {
+    // 2. Check Advertisement Name and Device Name (case-insensitive)
+    final advName = r.advertisementData.advName.toLowerCase();
+    final devName = r.device.platformName.toLowerCase();
+    if (advName.contains('beacon') ||
+        devName.contains('beacon') ||
+        advName.contains('classroom') ||
+        devName.contains('classroom')) {
       return true;
+    }
+    // 3. Check Manufacturer Data (Endian-agnostic hex match for target UUID or beacon prefix)
+    for (final entry in r.advertisementData.manufacturerData.entries) {
+      final hex = entry.value.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toLowerCase();
+      if (hex.contains('12345678') || hex.contains('bc9a7856') || hex.contains(cleanTargetUUID)) {
+        return true;
+      }
     }
     return false;
   }
@@ -300,6 +303,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           return;
         }
       }
+
+      // Runtime permission check for BLE & Location
+      if (await Permission.locationWhenInUse.isDenied || await Permission.bluetoothScan.isDenied) {
+        final reqs = await [
+          Permission.locationWhenInUse,
+          Permission.bluetoothScan,
+          Permission.bluetoothConnect,
+        ].request();
+        if (reqs[Permission.locationWhenInUse]?.isDenied == true || reqs[Permission.bluetoothScan]?.isDenied == true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Location & Nearby Devices permissions are required to scan classroom beacon.'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      // Check if Location (GPS) service is ON
+      try {
+        final isGpsOn = await Permission.location.serviceStatus.isEnabled;
+        if (!isGpsOn && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please turn ON GPS / Location in your phone to scan classroom beacon.'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+      } catch (_) {}
 
       // 2. Non-blocking adapter check
       BluetoothAdapterState state = FlutterBluePlus.adapterStateNow;
