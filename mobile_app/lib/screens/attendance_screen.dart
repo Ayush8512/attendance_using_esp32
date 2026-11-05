@@ -255,14 +255,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     bool found = false;
     StreamSubscription? scanSub;
     try {
-      if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
-        setState(() {
-          _isBeaconDetected = false;
-          _isManualScanning = false;
-        });
+      // 1. Non-blocking adapter check
+      BluetoothAdapterState state = FlutterBluePlus.adapterStateNow;
+      if (state == BluetoothAdapterState.unknown) {
+        try {
+          state = await FlutterBluePlus.adapterState.first.timeout(const Duration(milliseconds: 800));
+        } catch (_) {
+          state = FlutterBluePlus.adapterStateNow;
+        }
+      }
+
+      if (state != BluetoothAdapterState.on) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please ensure Bluetooth & GPS Location are turned ON.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
         return;
       }
 
+      // 2. Cancel any running scan before restarting
+      if (FlutterBluePlus.isScanningNow) {
+        try {
+          await FlutterBluePlus.stopScan();
+        } catch (_) {}
+      }
+
+      // 3. Listen for beacon packets
       scanSub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
           bool matched = false;
@@ -296,20 +318,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           }
           if (matched) {
             found = true;
+            if (mounted) {
+              setState(() {
+                _isBeaconDetected = true;
+                _isManualScanning = false;
+              });
+            }
             break;
           }
         }
       });
 
+      // 4. Short scan with fast 5-second timeout
       await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 5),
         androidUsesFineLocation: true,
       );
-      await Future.delayed(const Duration(seconds: 4));
+
+      // Fast check loop: stop as soon as found
+      for (int i = 0; i < 8; i++) {
+        if (found || !mounted) break;
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     } catch (e) {
       debugPrint('[BLE_SCAN] Error: $e');
     } finally {
-      await FlutterBluePlus.stopScan();
+      try {
+        await FlutterBluePlus.stopScan();
+      } catch (_) {}
       await scanSub?.cancel();
       if (mounted) {
         setState(() {
