@@ -136,16 +136,21 @@ def send_email_with_attachment(
     subject_line: str,
     body: str,
     attachment_path: str,
+    html_body: str | None = None,
 ) -> None:
     """
-    Send an email with a single ``.xlsx`` attachment via SMTP (TLS).
+    Send an email with a single ``.xlsx`` attachment via SMTP (TLS) in professional English.
     """
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("mixed")
     msg["From"] = SENDER_EMAIL
     msg["To"] = to_email
     msg["Subject"] = subject_line
 
-    msg.attach(MIMEText(body, "plain"))
+    alt_part = MIMEMultipart("alternative")
+    alt_part.attach(MIMEText(body, "plain", "utf-8"))
+    if html_body:
+        alt_part.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(alt_part)
 
     basename = os.path.basename(attachment_path)
     with open(attachment_path, "rb") as f:
@@ -153,9 +158,10 @@ def send_email_with_attachment(
     part["Content-Disposition"] = f'attachment; filename="{basename}"'
     msg.attach(part)
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
         server.ehlo()
         server.starttls()
+        server.ehlo()
         server.login(SMTP_USER, SMTP_PASSWORD)
         server.send_message(msg)
 
